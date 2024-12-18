@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Flibbertygibbet Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #87ceeb;
+    }
+    canvas {
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const GRAVITY = 0.5;
+    const FLAP_STRENGTH = -10;
+
+    let gameRunning = true;
+    let score = 0;
+
+    const flibbertygibbet = {
+      x: 100,
+      y: canvas.height / 2,
+      radius: 20,
+      velocityY: 0,
+      color: '#ff69b4',
+      flap() {
+        this.velocityY = FLAP_STRENGTH;
+      },
+      update() {
+        this.velocityY += GRAVITY;
+        this.y += this.velocityY;
+
+        // Keep above the floor
+        if (this.y + this.radius > canvas.height) {
+          this.y = canvas.height - this.radius;
+          this.velocityY = 0;
+        }
+
+        // Keep below the top
+        if (this.y - this.radius < 0) {
+          this.y = this.radius;
+          this.velocityY = 0;
+        }
+      },
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
+      }
+    };
+
+    class Obstacle {
+      constructor(x, width, gapHeight) {
+        this.x = x;
+        this.width = width;
+        this.gapY = Math.random() * (canvas.height - gapHeight);
+        this.gapHeight = gapHeight;
+        this.speed = 5;
+      }
+      update() {
+        this.x -= this.speed;
+      }
+      draw() {
+        ctx.fillStyle = '#2e8b57';
+        ctx.fillRect(this.x, 0, this.width, this.gapY);
+        ctx.fillRect(this.x, this.gapY + this.gapHeight, this.width, canvas.height);
+      }
+      isCollidingWith(player) {
+        const withinX = player.x + player.radius > this.x && player.x - player.radius < this.x + this.width;
+        const withinY =
+          player.y - player.radius < this.gapY || player.y + player.radius > this.gapY + this.gapHeight;
+        return withinX && withinY;
+      }
+    }
+
+    const obstacles = [];
+    const OBSTACLE_INTERVAL = 2000;
+    const OBSTACLE_WIDTH = 50;
+    const GAP_HEIGHT = 150;
+
+    let lastObstacleTime = 0;
+
+    function spawnObstacle() {
+      obstacles.push(new Obstacle(canvas.width, OBSTACLE_WIDTH, GAP_HEIGHT));
+    }
+
+    function updateObstacles() {
+      obstacles.forEach((obstacle, index) => {
+        obstacle.update();
+
+        if (obstacle.x + obstacle.width < 0) {
+          obstacles.splice(index, 1);
+          score += 1;
+        }
+
+        if (obstacle.isCollidingWith(flibbertygibbet)) {
+          gameRunning = false;
+        }
+      });
+    }
+
+    function drawObstacles() {
+      obstacles.forEach(obstacle => obstacle.draw());
+    }
+
+    function gameLoop(timestamp) {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      flibbertygibbet.update();
+      flibbertygibbet.draw();
+
+      if (timestamp - lastObstacleTime > OBSTACLE_INTERVAL) {
+        spawnObstacle();
+        lastObstacleTime = timestamp;
+      }
+
+      updateObstacles();
+      drawObstacles();
+
+      ctx.fillStyle = '#000';
+      ctx.font = '24px Arial';
+      ctx.fillText(`Score: ${score}`, 10, 30);
+
+      if (gameRunning) {
+        requestAnimationFrame(gameLoop);
+      } else {
+        ctx.fillStyle = '#000';
+        ctx.font = '48px Arial';
+        ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
+      }
+    }
+
+    window.addEventListener('keydown', event => {
+      if (event.code === 'Space') {
+        flibbertygibbet.flap();
+      }
+    });
+
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
