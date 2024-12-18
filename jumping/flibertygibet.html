@@ -137,7 +137,7 @@
     const OBSTACLE_INTERVAL = 2000;
     const POWERUP_INTERVAL = 8000;
     const OBSTACLE_WIDTH = 50;
-    const GAP_HEIGHT = 150;
+    let GAP_HEIGHT = 200;
 
     let lastObstacleTime = 0;
     let lastPowerUpTime = 0;
@@ -157,6 +157,9 @@
         if (obstacle.x + obstacle.width < 0) {
           obstacles.splice(index, 1);
           score += 1;
+          if (score % 10 === 0 && GAP_HEIGHT > 100) {
+            GAP_HEIGHT -= 10; // Gradually decrease gap height every 10 points
+          }
         }
 
         if (obstacle.isCollidingWith(flibbertygibbet)) {
@@ -246,6 +249,7 @@
       powerUps.length = 0;
       flibbertygibbet.y = canvas.height / 2;
       flibbertygibbet.velocityY = 0;
+      GAP_HEIGHT = 200; // Reset gap height
       restartButton.style.display = 'none';
       requestAnimationFrame(gameLoop);
     });
