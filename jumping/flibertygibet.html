@@ -13,22 +13,41 @@
     canvas {
       display: block;
     }
+    #restartButton {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 20px;
+      font-size: 20px;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none;
+    }
   </style>
 </head>
 <body>
   <canvas id="gameCanvas"></canvas>
+  <button id="restartButton">Restart</button>
   <script>
     const canvas = document.getElementById('gameCanvas');
     const ctx = canvas.getContext('2d');
+    const restartButton = document.getElementById('restartButton');
 
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
     const GRAVITY = 0.5;
     const FLAP_STRENGTH = -10;
+    const POWERUP_DURATION = 5000;
 
     let gameRunning = true;
     let score = 0;
+    let powerUpActive = false;
+    let powerUpTimeout;
 
     const flibbertygibbet = {
       x: 100,
@@ -43,13 +62,11 @@
         this.velocityY += GRAVITY;
         this.y += this.velocityY;
 
-        // Keep above the floor
         if (this.y + this.radius > canvas.height) {
           this.y = canvas.height - this.radius;
           this.velocityY = 0;
         }
 
-        // Keep below the top
         if (this.y - this.radius < 0) {
           this.y = this.radius;
           this.velocityY = 0;
@@ -81,6 +98,7 @@
         ctx.fillRect(this.x, this.gapY + this.gapHeight, this.width, canvas.height);
       }
       isCollidingWith(player) {
+        if (powerUpActive) return false;
         const withinX = player.x + player.radius > this.x && player.x - player.radius < this.x + this.width;
         const withinY =
           player.y - player.radius < this.gapY || player.y + player.radius > this.gapY + this.gapHeight;
@@ -88,15 +106,48 @@
       }
     }
 
+    class PowerUp {
+      constructor() {
+        this.x = canvas.width;
+        this.y = Math.random() * (canvas.height - 50) + 25;
+        this.radius = 15;
+        this.speed = 5;
+        this.color = '#ffd700';
+      }
+      update() {
+        this.x -= this.speed;
+      }
+      draw() {
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+        ctx.fillStyle = this.color;
+        ctx.fill();
+        ctx.closePath();
+      }
+      isCollidingWith(player) {
+        const dx = player.x - this.x;
+        const dy = player.y - this.y;
+        const distance = Math.sqrt(dx * dx + dy * dy);
+        return distance < player.radius + this.radius;
+      }
+    }
+
     const obstacles = [];
+    const powerUps = [];
     const OBSTACLE_INTERVAL = 2000;
+    const POWERUP_INTERVAL = 8000;
     const OBSTACLE_WIDTH = 50;
     const GAP_HEIGHT = 150;
 
     let lastObstacleTime = 0;
+    let lastPowerUpTime = 0;
 
     function spawnObstacle() {
       obstacles.push(new Obstacle(canvas.width, OBSTACLE_WIDTH, GAP_HEIGHT));
+    }
+
+    function spawnPowerUp() {
+      powerUps.push(new PowerUp());
     }
 
     function updateObstacles() {
@@ -114,8 +165,35 @@
       });
     }
 
+    function updatePowerUps() {
+      powerUps.forEach((powerUp, index) => {
+        powerUp.update();
+
+        if (powerUp.x + powerUp.radius < 0) {
+          powerUps.splice(index, 1);
+        }
+
+        if (powerUp.isCollidingWith(flibbertygibbet)) {
+          powerUps.splice(index, 1);
+          activatePowerUp();
+        }
+      });
+    }
+
+    function activatePowerUp() {
+      powerUpActive = true;
+      clearTimeout(powerUpTimeout);
+      powerUpTimeout = setTimeout(() => {
+        powerUpActive = false;
+      }, POWERUP_DURATION);
+    }
+
     function drawObstacles() {
       obstacles.forEach(obstacle => obstacle.draw());
+    }
+
+    function drawPowerUps() {
+      powerUps.forEach(powerUp => powerUp.draw());
     }
 
     function gameLoop(timestamp) {
@@ -129,8 +207,16 @@
         lastObstacleTime = timestamp;
       }
 
+      if (timestamp - lastPowerUpTime > POWERUP_INTERVAL) {
+        spawnPowerUp();
+        lastPowerUpTime = timestamp;
+      }
+
       updateObstacles();
       drawObstacles();
+
+      updatePowerUps();
+      drawPowerUps();
 
       ctx.fillStyle = '#000';
       ctx.font = '24px Arial';
@@ -142,6 +228,7 @@
         ctx.fillStyle = '#000';
         ctx.font = '48px Arial';
         ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
+        restartButton.style.display = 'block';
       }
     }
 
@@ -149,6 +236,18 @@
       if (event.code === 'Space') {
         flibbertygibbet.flap();
       }
+    });
+
+    restartButton.addEventListener('click', () => {
+      gameRunning = true;
+      score = 0;
+      powerUpActive = false;
+      obstacles.length = 0;
+      powerUps.length = 0;
+      flibbertygibbet.y = canvas.height / 2;
+      flibbertygibbet.velocityY = 0;
+      restartButton.style.display = 'none';
+      requestAnimationFrame(gameLoop);
     });
 
     requestAnimationFrame(gameLoop);
