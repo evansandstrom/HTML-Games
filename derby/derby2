@@ -1,0 +1,174 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Baseball Home Run Derby</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #87CEEB;
+        }
+        canvas {
+            display: block;
+            margin: 20px auto;
+            background: #009900;
+        }
+        #score {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Baseball Home Run Derby</h1>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="score">Score: 0 | Strikes: 0</div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game variables
+        let ball = { x: 50, y: 200, radius: 10, dx: 2, dy: 0, isMoving: false, isHit: false };
+        let bat = { x: 750, y: 180, width: 10, height: 40 };
+        let score = 0;
+        let strikes = 0;
+        const maxStrikes = 3;
+        let gameOver = false;
+
+        // Draw the ball
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        // Draw the bat
+        function drawBat() {
+            ctx.fillStyle = 'brown';
+            ctx.fillRect(bat.x, bat.y, bat.width, bat.height);
+        }
+
+        // Draw the field
+        function drawField() {
+            ctx.fillStyle = '#006400';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#87CEEB';
+            ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+        }
+
+        // Update the ball position
+        function updateBall() {
+            if (ball.isMoving) {
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+
+                // Check if the ball is hit
+                if (
+                    !ball.isHit &&
+                    ball.x + ball.radius >= bat.x &&
+                    ball.y >= bat.y &&
+                    ball.y <= bat.y + bat.height
+                ) {
+                    ball.isHit = true;
+                    ball.dx = -2; // Reverse direction
+                    ball.dy = -2; // Move upward
+                }
+
+                // Check if the ball goes out of the top of the screen (home run)
+                if (ball.isHit && ball.y + ball.radius < 0) {
+                    score++;
+                    resetBall();
+                }
+
+                // Check if the ball passes the bat without being hit (strike)
+                if (!ball.isHit && ball.x - ball.radius > canvas.width) {
+                    strikes++;
+                    if (strikes >= maxStrikes) {
+                        gameOver = true;
+                    }
+                    resetBall();
+                }
+            }
+        }
+
+        // Reset the ball
+        function resetBall() {
+            ball.x = 50;
+            ball.y = 200;
+            ball.dx = 2;
+            ball.dy = 0;
+            ball.isMoving = false;
+            ball.isHit = false;
+            updateScore();
+        }
+
+        // Update the score display
+        function updateScore() {
+            document.getElementById('score').innerText = `Score: ${score} | Strikes: ${strikes}`;
+            if (gameOver) {
+                document.getElementById('score').innerText += ' | Game Over!';
+            }
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (!gameOver) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawField();
+                drawBat();
+                drawBall();
+                updateBall();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // Start the pitch
+        function startPitch() {
+            if (!ball.isMoving && !gameOver) {
+                ball.isMoving = true;
+            }
+        }
+
+        // Handle click to swing the bat
+        canvas.addEventListener('click', () => {
+            if (ball.isMoving && !gameOver && !ball.isHit) {
+                // Check if the ball is within the bat's vertical range
+                if (ball.y >= bat.y && ball.y <= bat.y + bat.height) {
+                    // Check if the ball is close enough to the bat horizontally
+                    if (ball.x + ball.radius >= bat.x) {
+                        ball.isHit = true;
+                        ball.dx = -2; // Reverse direction
+                        ball.dy = -2; // Move upward
+                    } else {
+                        strikes++;
+                        if (strikes >= maxStrikes) {
+                            gameOver = true;
+                        }
+                        resetBall();
+                    }
+                } else {
+                    strikes++;
+                    if (strikes >= maxStrikes) {
+                        gameOver = true;
+                    }
+                    resetBall();
+                }
+            }
+        });
+
+        // Start the game loop
+        gameLoop();
+
+        // Start pitching the ball at intervals
+        setInterval(() => {
+            if (!ball.isMoving && !gameOver) {
+                startPitch();
+            }
+        }, 2000);
+    </script>
+</body>
+</html>
