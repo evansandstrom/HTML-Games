@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Home Run Derby</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            background-color: #87CEEB;
+        }
+        canvas {
+            display: block;
+            margin: 20px auto;
+            background: #009900;
+        }
+        #score {
+            font-size: 24px;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Baseball Home Run Derby</h1>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="score">Score: 0</div>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game variables
+        let ball = { x: 400, y: 350, radius: 10, dx: 0, dy: 0, isMoving: false };
+        let bat = { x: 380, y: 370, width: 40, height: 10 };
+        let score = 0;
+        let isPlaying = true;
+
+        // Draw the ball
+        function drawBall() {
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fillStyle = 'white';
+            ctx.fill();
+            ctx.closePath();
+        }
+
+        // Draw the bat
+        function drawBat() {
+            ctx.fillStyle = 'brown';
+            ctx.fillRect(bat.x, bat.y, bat.width, bat.height);
+        }
+
+        // Draw the field
+        function drawField() {
+            ctx.fillStyle = '#006400';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#ADD8E6';
+            ctx.fillRect(0, 0, canvas.width, canvas.height / 2);
+        }
+
+        // Update the ball position
+        function updateBall() {
+            if (ball.isMoving) {
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+
+                // Check if the ball is out of the park
+                if (ball.y < 0 || ball.x < 0 || ball.x > canvas.width) {
+                    score++;
+                    resetBall();
+                }
+
+                // Check if the ball falls back down
+                if (ball.y > canvas.height) {
+                    resetBall();
+                }
+            }
+        }
+
+        // Reset the ball
+        function resetBall() {
+            ball.x = 400;
+            ball.y = 350;
+            ball.dx = 0;
+            ball.dy = 0;
+            ball.isMoving = false;
+            updateScore();
+        }
+
+        // Update the score display
+        function updateScore() {
+            document.getElementById('score').innerText = `Score: ${score}`;
+        }
+
+        // Game loop
+        function gameLoop() {
+            if (isPlaying) {
+                ctx.clearRect(0, 0, canvas.width, canvas.height);
+                drawField();
+                drawBat();
+                drawBall();
+                updateBall();
+                requestAnimationFrame(gameLoop);
+            }
+        }
+
+        // Launch the ball when clicked
+        canvas.addEventListener('click', () => {
+            if (!ball.isMoving) {
+                ball.dx = (Math.random() * 6 - 3); // Random horizontal speed
+                ball.dy = -(Math.random() * 4 + 6); // Upward speed
+                ball.isMoving = true;
+            }
+        });
+
+        // Start the game loop
+        gameLoop();
+    </script>
+</body>
+</html>
