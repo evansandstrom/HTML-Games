@@ -1,0 +1,129 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retro 3D Teapot</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/three@0.128.0/examples/js/loaders/OBJLoader.js"></script>
+    <script>
+        let scene, camera, renderer, grid, teapot, particles;
+        const GRID_SIZE = 20;
+        const GRID_DIVISIONS = 20;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+            camera.position.z = 15;
+            camera.position.y = 5;
+
+            renderer = new THREE.WebGLRenderer({ antialias: true });
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            createGrid();
+            loadTeapot();
+            createParticles();
+
+            window.addEventListener('resize', onWindowResize, false);
+        }
+
+        function createGrid() {
+            const gridMaterial = new THREE.LineBasicMaterial({ color: 0x00ff00 });
+            grid = new THREE.GridHelper(GRID_SIZE, GRID_DIVISIONS, 0x00ff00, 0x00ff00);
+            scene.add(grid);
+        }
+
+        function loadTeapot() {
+            const loader = new THREE.OBJLoader();
+            loader.load(
+                'https://raw.githubusercontent.com/alecjacobson/common-3d-test-models/master/data/teapot.obj',
+                function(object) {
+                    teapot = object;
+                    teapot.traverse(function(child) {
+                        if (child instanceof THREE.Mesh) {
+                            child.material = new THREE.MeshBasicMaterial({
+                                color: 0xff00ff,
+                                wireframe: true
+                            });
+                        }
+                    });
+                    teapot.scale.set(2, 2, 2);
+                    teapot.position.set(0, 2, 0);
+                    scene.add(teapot);
+                },
+                function(xhr) {
+                    console.log((xhr.loaded / xhr.total * 100) + '% loaded');
+                },
+                function(error) {
+                    console.error('An error happened', error);
+                }
+            );
+        }
+
+        function createParticles() {
+            const particleGeometry = new THREE.BufferGeometry();
+            const particleCount = 1000;
+
+            const positions = new Float32Array(particleCount * 3);
+
+            for (let i = 0; i < particleCount * 3; i += 3) {
+                positions[i] = (Math.random() - 0.5) * GRID_SIZE;
+                positions[i + 1] = Math.random() * GRID_SIZE / 2;
+                positions[i + 2] = (Math.random() - 0.5) * GRID_SIZE;
+            }
+
+            particleGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const particleMaterial = new THREE.PointsMaterial({ color: 0x00ffff, size: 0.05 });
+
+            particles = new THREE.Points(particleGeometry, particleMaterial);
+            scene.add(particles);
+        }
+
+        function onWindowResize() {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+
+            const time = Date.now() * 0.001;
+
+            // Pulsate grid
+            grid.scale.y = Math.sin(time * 2) * 0.1 + 1;
+
+            // Rotate teapot
+            if (teapot) {
+                teapot.rotation.y += 0.005;
+            }
+
+            // Move particles
+            const positions = particles.geometry.attributes.position.array;
+            for (let i = 1; i < positions.length; i += 3) {
+                positions[i] += Math.sin(time + positions[i]) * 0.01;
+                if (positions[i] > GRID_SIZE / 2) positions[i] = 0;
+            }
+            particles.geometry.attributes.position.needsUpdate = true;
+
+            // Move camera in a circle
+            camera.position.x = Math.sin(time * 0.5) * 15;
+            camera.position.z = Math.cos(time * 0.5) * 15;
+            camera.lookAt(scene.position);
+
+            renderer.render(scene, camera);
+        }
+
+        init();
+        animate();
+    </script>
+</body>
+</html>
