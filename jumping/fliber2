@@ -1,0 +1,222 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Evan's Flappy Bird</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+    }
+    canvas {
+      display: block;
+    }
+    #controls {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      background: rgba(255, 255, 255, 0.8);
+      padding: 10px;
+      border-radius: 5px;
+    }
+    #controls label {
+      margin-right: 10px;
+    }
+    #restartButton {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      padding: 10px 20px;
+      font-size: 20px;
+      color: #fff;
+      background-color: #007bff;
+      border: none;
+      border-radius: 5px;
+      cursor: pointer;
+      display: none;
+    }
+    #banner {
+      position: absolute;
+      top: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 32px;
+      font-family: Arial, sans-serif;
+      color: #fff;
+      background: linear-gradient(to right, red, orange, yellow, green, blue, indigo, violet);
+      background-size: 400% 100%;
+      animation: colorShift 5s linear infinite;
+      padding: 10px 0;
+    }
+    @keyframes colorShift {
+      0% { background-position: 0% 0%; }
+      100% { background-position: 100% 0%; }
+    }
+  </style>
+</head>
+<body>
+  <div id="banner">Evan's Flappy Bird</div>
+  <div id="controls">
+    <label for="characterColor">Character Color:</label>
+    <input type="color" id="characterColor" value="#ff69b4">
+    <label for="obstacleColor">Obstacle Color:</label>
+    <input type="color" id="obstacleColor" value="#2e8b57">
+    <label for="backgroundColor">Background Color:</label>
+    <input type="color" id="backgroundColor" value="#87ceeb">
+  </div>
+  <canvas id="gameCanvas"></canvas>
+  <button id="restartButton">Restart</button>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const restartButton = document.getElementById('restartButton');
+    const characterColorInput = document.getElementById('characterColor');
+    const obstacleColorInput = document.getElementById('obstacleColor');
+    const backgroundColorInput = document.getElementById('backgroundColor');
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const GRAVITY = 0.5;
+    const FLAP_STRENGTH = -10;
+
+    let gameRunning = true;
+    let score = 0;
+
+    const bird = {
+      x: 100,
+      y: canvas.height / 2,
+      width: 40,
+      height: 30,
+      velocityY: 0,
+      color: characterColorInput.value,
+      flap() {
+        this.velocityY = FLAP_STRENGTH;
+      },
+      update() {
+        this.velocityY += GRAVITY;
+        this.y += this.velocityY;
+
+        if (this.y + this.height > canvas.height) {
+          gameRunning = false;
+        }
+
+        if (this.y < 0) {
+          this.y = 0;
+          this.velocityY = 0;
+        }
+      },
+      draw() {
+        ctx.fillStyle = this.color;
+        ctx.beginPath();
+        ctx.ellipse(this.x, this.y, this.width / 2, this.height / 2, 0, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    };
+
+    class Obstacle {
+      constructor(x, width, gapHeight) {
+        this.x = x;
+        this.width = width;
+        this.gapY = Math.random() * (canvas.height - gapHeight);
+        this.gapHeight = gapHeight;
+        this.speed = 5;
+      }
+      update() {
+        this.x -= this.speed;
+      }
+      draw() {
+        ctx.fillStyle = obstacleColorInput.value;
+        ctx.fillRect(this.x, 0, this.width, this.gapY);
+        ctx.fillRect(this.x, this.gapY + this.gapHeight, this.width, canvas.height);
+      }
+      isCollidingWith(player) {
+        const withinX = player.x + player.width / 2 > this.x && player.x - player.width / 2 < this.x + this.width;
+        const withinY =
+          player.y - player.height / 2 < this.gapY || player.y + player.height / 2 > this.gapY + this.gapHeight;
+        return withinX && withinY;
+      }
+    }
+
+    const obstacles = [];
+    const OBSTACLE_INTERVAL = 2000;
+    const OBSTACLE_WIDTH = 60;
+    const GAP_HEIGHT = 200;
+
+    let lastObstacleTime = 0;
+
+    function spawnObstacle() {
+      obstacles.push(new Obstacle(canvas.width, OBSTACLE_WIDTH, GAP_HEIGHT));
+    }
+
+    function updateObstacles() {
+      obstacles.forEach((obstacle, index) => {
+        obstacle.update();
+
+        if (obstacle.x + obstacle.width < 0) {
+          obstacles.splice(index, 1);
+          score += 1;
+        }
+
+        if (obstacle.isCollidingWith(bird)) {
+          gameRunning = false;
+        }
+      });
+    }
+
+    function drawObstacles() {
+      obstacles.forEach(obstacle => obstacle.draw());
+    }
+
+    function gameLoop(timestamp) {
+      ctx.fillStyle = backgroundColorInput.value;
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      bird.color = characterColorInput.value;
+      bird.update();
+      bird.draw();
+
+      if (timestamp - lastObstacleTime > OBSTACLE_INTERVAL) {
+        spawnObstacle();
+        lastObstacleTime = timestamp;
+      }
+
+      updateObstacles();
+      drawObstacles();
+
+      ctx.fillStyle = '#000';
+      ctx.font = '24px Arial';
+      ctx.fillText(`Score: ${score}`, canvas.width - 100, canvas.height - 20);
+
+      if (gameRunning) {
+        requestAnimationFrame(gameLoop);
+      } else {
+        ctx.fillStyle = '#000';
+        ctx.font = '48px Arial';
+        ctx.fillText('Game Over', canvas.width / 2 - 100, canvas.height / 2);
+        restartButton.style.display = 'block';
+      }
+    }
+
+    window.addEventListener('keydown', event => {
+      if (event.code === 'Space') {
+        bird.flap();
+      }
+    });
+
+    restartButton.addEventListener('click', () => {
+      gameRunning = true;
+      score = 0;
+      obstacles.length = 0;
+      bird.y = canvas.height / 2;
+      bird.velocityY = 0;
+      restartButton.style.display = 'none';
+      requestAnimationFrame(gameLoop);
+    });
+
+    requestAnimationFrame(gameLoop);
+  </script>
+</body>
+</html>
