@@ -1,0 +1,496 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Asteroid Field Explorer - Progressive Difficulty</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            width: 100%;
+            height: 100%;
+            background-color: #000;
+            font-family: Arial, sans-serif;
+        }
+        canvas {
+            display: block;
+        }
+        #info {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            color: white;
+            font-size: 10px;
+            background-color: rgba(0, 0, 0, 0.5);
+            padding: 10px;
+            border-radius: 5px;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="asteroidCanvas"></canvas>
+    <div id="info">Use arrow keys to navigate. Space to shoot.<br>
+    Power-ups: Shooting every 10 asteroids, Speed every 3 asteroids, Nuclear bomb every 30 asteroids!</div>
+    <script>
+        const canvas = document.getElementById('asteroidCanvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+
+        // Game parameters
+        let stars = [];
+        let asteroids = [];
+        let lasers = [];
+        let bonusItems = [];
+        let ship = { x: 0, y: 0, size: 20, speed: 5, baseSpeed: 5 };
+        let score = 0;
+        let powerUpActive = 0;
+        let speedPowerUpActive = 0;
+        let asteroidsDestroyed = 0;
+        let currentAsteroidCount = 10;
+        let nuclearFlashActive = false;
+        let nuclearStreakStars = [];
+
+        function resizeCanvas() {
+            width = window.innerWidth;
+            height = window.innerHeight;
+            canvas.width = width;
+            canvas.height = height;
+            ship.x = width / 2;
+            ship.y = height - 50;
+        }
+
+        window.addEventListener('resize', resizeCanvas);
+        resizeCanvas();
+
+        class Star {
+            constructor(x, y, radius, speed = 0.5) {
+                this.x = x;
+                this.y = y;
+                this.radius = radius;
+                this.brightness = Math.random();
+                this.brightnessDelta = Math.random() * 0.02 - 0.01;
+                this.speed = speed;
+                this.originalSpeed = speed;
+            }
+
+            draw() {
+                ctx.fillStyle = `rgba(255, 255, 255, ${this.brightness})`;
+                ctx.beginPath();
+                ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+                ctx.fill();
+            }
+
+            update() {
+                this.brightness += this.brightnessDelta;
+                if (this.brightness > 1 || this.brightness < 0) {
+                    this.brightnessDelta = -this.brightnessDelta;
+                }
+                this.y += this.speed;
+                if (this.y > height) {
+                    this.y = 0;
+                    this.x = Math.random() * width;
+                }
+            }
+        }
+
+        class Asteroid {
+            constructor() {
+                this.x = Math.random() * width;
+                this.y = -50;
+                this.size = Math.random() * 30 + 20;
+                this.speed = Math.random() * 2 + 1;
+                this.rotation = 0;
+                this.rotationSpeed = Math.random() * 0.1 - 0.05;
+            }
+
+            draw() {
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(this.rotation);
+                ctx.fillStyle = '#A9A9A9';
+                ctx.beginPath();
+                ctx.moveTo(0, -this.size / 2);
+                for (let i = 0; i < 7; i++) {
+                    const angle = (i / 7) * Math.PI * 2;
+                    const radius = this.size / 2 * (0.8 + Math.random() * 0.4);
+                    ctx.lineTo(Math.cos(angle) * radius, Math.sin(angle) * radius);
+                }
+                ctx.closePath();
+                ctx.fill();
+                ctx.restore();
+            }
+
+            update() {
+                this.y += this.speed;
+                this.rotation += this.rotationSpeed;
+                if (this.y > height + 50) {
+                    this.y = -50;
+                    this.x = Math.random() * width;
+                }
+            }
+        }
+
+        class Laser {
+            constructor(x, y, vx = 0, vy = -10) {
+                this.x = x;
+                this.y = y;
+                this.vx = vx;
+                this.vy = vy;
+                this.width = powerUpActive > 0 ? 20 : 5;
+                this.height = 15;
+            }
+
+            draw() {
+                ctx.fillStyle = '#FF0000';
+                ctx.save();
+                ctx.translate(this.x, this.y);
+                ctx.rotate(Math.atan2(this.vx, -this.vy));
+                ctx.fillRect(-this.width / 2, 0, this.width, this.height);
+                ctx.restore();
+            }
+
+            update() {
+                this.x += this.vx;
+                this.y += this.vy;
+            }
+        }
+
+        class BonusItem {
+            constructor(type) {
+                this.x = Math.random() * width;
+                this.y = type === 'nuclear' ? height + 100 : -30;
+                this.size = 20;
+                this.speed = 1;
+                this.type = type;
+                this.pulsateTime = 0;
+            }
+
+            draw() {
+                if (this.type === 'nuclear') {
+                    const colors = ['#FF0000', '#FF7F00', '#FFFF00', '#00FF00', '#0000FF', '#8B00FF'];
+                    const colorIndex = Math.floor(this.pulsateTime / 10) % colors.length;
+                    ctx.fillStyle = colors[colorIndex];
+                    this.pulsateTime++;
+                } else {
+                    ctx.fillStyle = this.type === 'shooting' ? '#800080' : '#00FF00';
+                }
+                ctx.beginPath();
+                ctx.moveTo(this.x, this.y - this.size / 2);
+                ctx.lineTo(this.x - this.size / 2, this.y + this.size / 2);
+                ctx.lineTo(this.x + this.size / 2, this.y + this.size / 2);
+                ctx.closePath();
+                ctx.fill();
+            }
+
+            update() {
+                if (this.type === 'nuclear') {
+                    this.y -= this.speed;
+                } else {
+                    this.y += this.speed;
+                }
+            }
+        }
+
+        function initStars() {
+            stars = [];
+            for (let i = 0; i < 200; i++) {
+                const x = Math.random() * width;
+                const y = Math.random() * height;
+                const radius = Math.random() * 1.5;
+                stars.push(new Star(x, y, radius));
+            }
+        }
+
+        function initAsteroids() {
+            asteroids = [];
+            for (let i = 0; i < currentAsteroidCount; i++) {
+                asteroids.push(new Asteroid());
+            }
+        }
+
+        function drawSpace() {
+            ctx.fillStyle = '#000000';
+            ctx.fillRect(0, 0, width, height);
+
+            stars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+
+            asteroids.forEach(asteroid => {
+                asteroid.update();
+                asteroid.draw();
+            });
+
+            lasers.forEach(laser => {
+                laser.update();
+                laser.draw();
+            });
+
+            bonusItems.forEach(item => {
+                item.update();
+                item.draw();
+            });
+
+            // Draw ship
+            ctx.fillStyle = '#00FFFF';
+            ctx.beginPath();
+            ctx.moveTo(ship.x, ship.y - ship.size / 2);
+            ctx.lineTo(ship.x - ship.size / 2, ship.y + ship.size / 2);
+            ctx.lineTo(ship.x + ship.size / 2, ship.y + ship.size / 2);
+            ctx.closePath();
+            ctx.fill();
+
+            // Draw score and asteroid count
+            ctx.fillStyle = 'white';
+            ctx.font = '24px Arial';
+            ctx.fillText(`Score: ${score}`, 10, 30);
+            ctx.fillText(`Asteroids Destroyed: ${asteroidsDestroyed}`, 10, 60);
+            ctx.fillText(`Incoming Asteroids: ${currentAsteroidCount}`, 10, 90);
+
+            // Draw power-up indicators
+            if (powerUpActive > 0) {
+                ctx.fillStyle = 'rgba(255, 215, 0, 0.5)';
+                ctx.fillRect(10, 120, (powerUpActive / 900) * 200, 10);
+                ctx.strokeStyle = '#FFD700';
+                ctx.strokeRect(10, 120, 200, 10);
+            }
+            if (speedPowerUpActive > 0) {
+                ctx.fillStyle = 'rgba(0, 255, 0, 0.5)';
+                ctx.fillRect(10, 140, (speedPowerUpActive / 900) * 200, 10);
+                ctx.strokeStyle = '#00FF00';
+                ctx.strokeRect(10, 140, 200, 10);
+            }
+
+            // Draw nuclear flash effect
+            if (nuclearFlashActive) {
+                ctx.fillStyle = 'rgba(255, 255, 255, 0.)';
+                ctx.fillRect(0, 0, width, height);
+            }
+
+            // Draw nuclear streak stars
+            nuclearStreakStars.forEach(star => {
+                star.update();
+                star.draw();
+            });
+        }
+
+        function checkCollisions() {
+            for (let i = asteroids.length - 1; i >= 0; i--) {
+                const asteroid = asteroids[i];
+                const dx = ship.x - asteroid.x;
+                const dy = ship.y - asteroid.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < (ship.size / 2 + asteroid.size / 2)) {
+                    // Game over
+                    alert(`Game Over! Your score: ${score}`);
+                    resetGame();
+                    return;
+                }
+
+                // Check laser collisions
+                for (let j = lasers.length - 1; j >= 0; j--) {
+                    const laser = lasers[j];
+                    const lx = laser.x - asteroid.x;
+                    const ly = laser.y - asteroid.y;
+                    const laserDistance = Math.sqrt(lx * lx + ly * ly);
+
+                    if (laserDistance < asteroid.size / 2) {
+                        // Asteroid hit
+                        asteroids.splice(i, 1);
+                        lasers.splice(j, 1);
+                        score += 10;
+                        asteroidsDestroyed++;
+
+                        // Check if it's time for a power-up
+                        if (asteroidsDestroyed % 30 === 0) {
+                            bonusItems.push(new BonusItem('nuclear'));
+                        } else if (asteroidsDestroyed % 10 === 0) {
+                            bonusItems.push(new BonusItem('shooting'));
+                        } else if (asteroidsDestroyed % 3 === 0) {
+                            bonusItems.push(new BonusItem('speed'));
+                        }
+
+                        // Increase asteroid count at certain milestones
+                        if (asteroidsDestroyed % 50 === 0) {
+                            currentAsteroidCount += 5;
+                        }
+
+                        asteroids.push(new Asteroid());
+                        break;
+                    }
+                }
+            }
+
+            // Check for bonus item collection
+            for (let i = bonusItems.length - 1; i >= 0; i--) {
+                const item = bonusItems[i];
+                const dx = ship.x - item.x;
+                const dy = ship.y - item.y;
+                const distance = Math.sqrt(dx * dx + dy * dy);
+
+                if (distance < (ship.size / 2 + item.size / 2)) {
+                    bonusItems.splice(i, 1);
+                    if (item.type === 'shooting') {
+                        powerUpActive = 900; // 15 seconds (assuming 60 fps)
+                    } else if (item.type === 'speed') {
+                        speedPowerUpActive = 900; // 15 seconds
+                        ship.speed = ship.baseSpeed * 2; // Double the speed
+                    } else if (item.type === 'nuclear') {
+                        activateNuclearPowerUp();
+                    }
+                }
+            }
+
+            // Remove lasers that are off-screen
+            lasers = lasers.filter(laser => laser.y > 0 && laser.y < height && laser.x > 0 && laser.x < width);
+
+            // Remove bonus items that are off-screen
+            bonusItems = bonusItems.filter(item => item.y > -50 && item.y < height + 150);
+
+            // Ensure the correct number of asteroids
+            while (asteroids.length < currentAsteroidCount) {
+                asteroids.push(new Asteroid());
+            }
+
+            // Update power-up timers
+            if (powerUpActive > 0) {
+                powerUpActive--;
+            }
+            if (speedPowerUpActive > 0) {
+                speedPowerUpActive--;
+                if (speedPowerUpActive === 0) {
+                    ship.speed = ship.baseSpeed; // Reset speed when power-up ends
+                }
+            }
+        }
+
+        function activateNuclearPowerUp() {
+            // Destroy all asteroids on screen
+            score += asteroids.length * 10;
+            asteroidsDestroyed += asteroids.length;
+            asteroids = [];
+
+            // Create a flash effect
+            nuclearFlashActive = true;
+            setTimeout(() => {
+                nuclearFlashActive = false;
+            }, 800);
+
+            // Create streaking stars effect
+            for (let i = 0; i < 50; i++) {
+                nuclearStreakStars.push(new Star(Math.random() * width, 0, Math.random() * 3 + 1, Math.random() * 10 + 5));
+            }
+
+            // Speed up star movement
+            stars.forEach(star => star.speed *= 5);
+
+            // Delay asteroid respawn and gradually slow down stars
+            setTimeout(() => {
+                const slowDownStars = setInterval(() => {
+                    stars.forEach((star, index) => {
+                        if (star.speed > originalStarSpeeds[index]) {
+                            star.speed *= 0.98;
+                        } else {
+                            star.speed = originalStarSpeeds[index];
+                        }
+                    });
+                    if (stars[0].speed <= originalStarSpeeds[0]) {
+                        clearInterval(slowDownStars);
+                    }
+                }, 100);
+
+                // Gradually respawn asteroids
+                const respawnInterval = setInterval(() => {
+                    if (asteroids.length < currentAsteroidCount) {
+                        asteroids.push(new Asteroid());
+                    } else {
+                        clearInterval(respawnInterval);
+                    }
+                }, 1000);
+            }, 10000); // Increased delay before slowing down stars and respawning asteroids
+    }
+
+    // Remove lasers that are off-screen
+    lasers = lasers.filter(laser => laser.y > 0 && laser.y < height && laser.x > 0 && laser.x < width);
+
+    // Remove bonus items that are off-screen
+    bonusItems = bonusItems.filter(item => item.y > -50 && item.y < height + 150);
+
+    // Ensure the correct number of asteroids
+    while (asteroids.length < currentAsteroidCount) {
+        asteroids.push(new Asteroid());
+    }
+
+    // Update power-up timers
+    if (powerUpActive > 0) {
+        powerUpActive--;
+    }
+    if (speedPowerUpActive > 0) {
+        speedPowerUpActive--;
+        if (speedPowerUpActive === 0) {
+            ship.speed = 5; // Reset speed when power-up ends
+        }
+}
+
+function animate() {
+    ctx.clearRect(0, 0, width, height);
+    drawSpace();
+    checkCollisions();
+
+
+if (Math.random() < 0.2 && bonusItems.length < 1) {
+    const types = ['speed', 'shooting', 'nuclear']; // Add all your bonus types here
+    const randomType = types[Math.floor(Math.random() * types.length)];
+    bonusItems.push(new BonusItem(randomType));
+}
+
+    // Add this section to create a "warp" effect
+    if (stars[0].speed > 0.5) {
+        ctx.fillStyle = 'rgba(255, 255, 255, 0.1)';
+        ctx.fillRect(0, 0, width, height);
+    }
+
+    requestAnimationFrame(animate);
+}
+
+window.addEventListener('keydown', (e) => {
+    switch(e.key) {
+        case 'ArrowLeft':
+            ship.x = Math.max(ship.size / 2, ship.x - ship.speed);
+            break;
+        case 'ArrowRight':
+            ship.x = Math.min(width - ship.size / 2, ship.x + ship.speed);
+            break;
+        case 'ArrowUp':
+            ship.y = Math.max(ship.size / 2, ship.y - ship.speed);
+            break;
+        case 'ArrowDown':
+            ship.y = Math.min(height - ship.size / 2, ship.y + ship.speed);
+            break;
+        case ' ':
+            // Shoot laser
+            if (powerUpActive > 0) {
+                // Shoot multiple lasers at different angles
+                for (let angle = -30; angle <= 30; angle += 30) {
+                    const rad = angle * Math.PI / 180;
+                    const vx = Math.sin(rad) * 10;
+                    const vy = -Math.cos(rad) * 10;
+                    lasers.push(new Laser(ship.x, ship.y - ship.size / 2, vx, vy));
+                }
+            } else {
+                lasers.push(new Laser(ship.x, ship.y - ship.size / 2));
+            }
+            break;
+    }
+});
+
+initStars();
+initAsteroids();
+animate();
+    </script>
+</body>
+</html>
