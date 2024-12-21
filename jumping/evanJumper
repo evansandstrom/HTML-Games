@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Evan's Square Jumper</title>
+    <style>
+        @font-face {
+            font-family: 'PressStart2P';
+            src: url('https://fonts.cdnfonts.com/s/15017/PressStart2P-Regular.woff') format('woff');
+        }
+        body {
+            background-color: #000;
+            color: #fff;
+            font-family: 'PressStart2P', sans-serif;
+            text-align: center;
+            margin: 0;
+            padding: 0;
+        }
+        h1 {
+            font-size: 48px;
+            margin-top: 20px;
+            color: #00ff00;
+            text-shadow: 2px 2px 0px #000;
+        }
+        #gameCanvas {
+            background-color: #87CEEB;
+            display: block;
+            margin: 20px auto;
+            border: 2px solid #000;
+        }
+        #game-over, #game-win {
+            display: none;
+            font-size: 54px;
+            color: #ff0000;
+        }
+        #scoreboard {
+            font-size: 20px;
+            margin: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Evan's Square Jumper</h1>
+    <h2>Jump the box and attack 15x with space bar to win</h2>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <div id="scoreboard">Collisions: 0 | Attacks: 0</div>
+    <div id="game-over">Game Over! Press Enter to try FASTER!</div>
+    <div id="game-win">You Win! Press Enter to go to the next level.</div>
+
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        const turtle = {
+            x: 50,
+            y: 350,
+            width: 50,
+            height: 50,
+            speed: 5,
+            dx: 0,
+            dy: 0,
+            jumpPower: 10,
+            isJumping: false,
+            isFalling: false,
+            color: '#008000',
+            flashColor: '#FFD700',
+            isFlashing: false,
+            flashDuration: 10, // frames
+            flashCounter: 0
+        };
+
+        const enemy = {
+            x: 750,
+            y: 350,
+            width: 50,
+            height: 50,
+            speed: 3,
+        };
+
+        const sword = {
+            width: 50,
+            height: 10,
+            isVisible: false,
+            duration: 10, // frames
+            counter: 0
+        };
+
+        let points = 0;
+        let hits = 0;
+
+        function drawTurtle() {
+            ctx.fillStyle = turtle.isFlashing ? turtle.flashColor : turtle.color;
+            ctx.fillRect(turtle.x, turtle.y, turtle.width, turtle.height);
+        }
+
+        function drawEnemy() {
+            ctx.fillStyle = '#C11C84';
+            ctx.fillRect(enemy.x, enemy.y, enemy.width, enemy.height);
+        }
+
+        function drawSword() {
+            if (sword.isVisible) {
+                ctx.fillStyle = '#000000'; // gold color for the sword
+                ctx.fillRect(turtle.x - sword.width, turtle.y + turtle.height / 2 - sword.height / 2, sword.width, sword.height);
+            }
+        }
+
+        function updateScoreboard() {
+            document.getElementById('scoreboard').textContent = `Collisions: ${hits} | Attacks: ${points}`;
+        }
+
+        function moveTurtle() {
+            turtle.x += turtle.dx;
+            turtle.y += turtle.dy;
+
+            if (turtle.isJumping) {
+                turtle.dy = -turtle.jumpPower;
+                turtle.isJumping = false;
+                turtle.isFalling = true;
+            } else if (turtle.isFalling) {
+                turtle.dy += 0.5; // gravity
+                if (turtle.y >= 350) { // ground level
+                    turtle.dy = 0;
+                    turtle.y = 350;
+                    turtle.isFalling = false;
+                }
+            }
+
+            // Prevent turtle from going out of bounds
+            if (turtle.x < 0) {
+                turtle.x = 0;
+            }
+            if (turtle.x + turtle.width > canvas.width) {
+                turtle.x = canvas.width - turtle.width;
+            }
+        }
+
+        function moveEnemy() {
+            enemy.x -= enemy.speed;
+            if (enemy.x + enemy.width < 0) {
+                enemy.x = canvas.width;
+            }
+        }
+
+        function detectCollision() {
+            if (
+                turtle.x < enemy.x + enemy.width &&
+                turtle.x + turtle.width > enemy.x &&
+                turtle.y < enemy.y + enemy.height &&
+                turtle.y + turtle.height > enemy.y
+            ) {
+                hits += 1;
+                updateScoreboard();
+                enemy.x = canvas.width; // reset enemy position
+                if (hits >= 5) {
+                    document.getElementById('game-over').style.display = 'block';
+                    cancelAnimationFrame(animationId);
+                }
+            }
+        }
+
+        function detectAttack() {
+            if (
+                sword.isVisible &&
+                turtle.x - sword.width < enemy.x + enemy.width &&
+                turtle.x > enemy.x &&
+                turtle.y + turtle.height / 2 - sword.height / 2 < enemy.y + enemy.height &&
+                turtle.y + turtle.height / 2 + sword.height / 2 > enemy.y
+            ) {
+                points += 1;
+                updateScoreboard();
+                turtle.isFlashing = true;
+                turtle.flashCounter = turtle.flashDuration;
+                enemy.x = canvas.width; // reset enemy position
+                if (points >= 15) {
+                    document.getElementById('game-win').style.display = 'block';
+                    cancelAnimationFrame(animationId);
+                }
+            }
+        }
+
+        function update() {
+            moveTurtle();
+            moveEnemy();
+            detectCollision();
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawTurtle();
+            drawEnemy();
+            drawSword();
+
+            if (turtle.isFlashing) {
+                turtle.flashCounter--;
+                if (turtle.flashCounter <= 0) {
+                    turtle.isFlashing = false;
+                }
+            }
+
+            if (sword.isVisible) {
+                sword.counter--;
+                if (sword.counter <= 0) {
+                    sword.isVisible = false;
+                }
+            }
+
+            requestAnimationFrame(update);
+        }
+
+        function keyDown(e) {
+            if (e.key === 'ArrowRight' || e.key === 'Right') {
+                turtle.dx = turtle.speed;
+            } else if (e.key === 'ArrowLeft' || e.key === 'Left') {
+                turtle.dx = -turtle.speed;
+            } else if (e.key === 'ArrowUp' || e.key === 'Up') {
+                if (!turtle.isJumping && !turtle.isFalling) {
+                    turtle.isJumping = true;
+                }
+            } else if (e.key === ' ') {
+                sword.isVisible = true;
+                sword.counter = sword.duration;
+                detectAttack();
+            } else if (e.key === 'Enter') {
+                if (hits >= 5 || points >= 15) {
+                    hits = 0;
+                    points = 0;
+                    turtle.x = 50;
+                    enemy.x = 750;
+                    document.getElementById('game-over').style.display = 'none';
+                    document.getElementById('game-win').style.display = 'none';
+                    updateScoreboard();
+                    update();
+                }
+            }
+        }
+
+        function keyUp(e) {
+            if (e.key === 'ArrowRight' || e.key === 'Right' || e.key === 'ArrowLeft' || e.key === 'Left') {
+                turtle.dx = 0;
+            }
+        }
+
+        document.addEventListener('keydown', keyDown);
+        document.addEventListener('keyup', keyUp);
+
+        let animationId = requestAnimationFrame(update);
+    </script>
+</body>
+</html>
