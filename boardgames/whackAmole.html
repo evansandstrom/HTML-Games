@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Catch the Dot</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+                margin: 0;
+                padding: 0;
+                overflow: hidden;
+                background-color: #f0f8ff;
+            }
+            .game-area {
+                position: relative;
+                width: 100vw;
+                height: 100vh;
+                background-color: #d9eaf7;
+                overflow: hidden;
+            }
+            .dot {
+                position: absolute;
+                width: 50px;
+                height: 50px;
+                background-color: red;
+                border-radius: 50%;
+                cursor: pointer;
+                animation: fadeIn 0.5s;
+            }
+            @keyframes fadeIn {
+                from {
+                    opacity: 0;
+                }
+                to {
+                    opacity: 1;
+                }
+            }
+            .score {
+                position: fixed;
+                top: 10px;
+                left: 10px;
+                font-size: 24px;
+                color: #333;
+            }
+            .timer {
+                position: fixed;
+                top: 10px;
+                right: 10px;
+                font-size: 24px;
+                color: #333;
+            }
+            .game-over {
+                display: none;
+                position: fixed;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background-color: white;
+                border: 2px solid #ccc;
+                padding: 20px;
+                box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+                text-align: center;
+            }
+            .game-over h1 {
+                margin: 0 0 20px;
+                font-size: 32px;
+            }
+            .game-over button {
+                padding: 10px 20px;
+                font-size: 18px;
+                cursor: pointer;
+            }
+        </style>
+</head>
+<body>
+        <div class="game-area" id="gameArea"></div>
+        <div class="score" id="score">Score: 0</div>
+        <div class="timer" id="timer">Time: 30</div>
+        <div class="game-over" id="gameOver">
+            <h1>Game Over!</h1>
+            <p>Your final score is: <span id="finalScore">0</span></p>
+            <button onclick="startGame()">Play Again</button>
+        </div>
+
+
+        <script>
+            const gameArea = document.getElementById('gameArea');
+            const scoreDisplay = document.getElementById('score');
+            const timerDisplay = document.getElementById('timer');
+            const gameOverScreen = document.getElementById('gameOver');
+            const finalScoreDisplay = document.getElementById('finalScore');
+
+
+            let score = 0;
+            let timeLeft = 30;
+            let gameInterval;
+            let timerInterval;
+
+
+            function getRandomPosition() {
+                const x = Math.random() * (window.innerWidth - 50);
+                const y = Math.random() * (window.innerHeight - 50);
+                return { x, y };
+            }
+
+
+            function createDot() {
+                const dot = document.createElement('div');
+                dot.classList.add('dot');
+
+
+                const { x, y } = getRandomPosition();
+                dot.style.left = `${x}px`;
+                dot.style.top = `${y}px`;
+
+
+                dot.addEventListener('click', () => {
+                    score++;
+                    scoreDisplay.textContent = `Score: ${score}`;
+                    gameArea.removeChild(dot);
+                });
+
+
+                gameArea.appendChild(dot);
+
+
+                setTimeout(() => {
+                    if (gameArea.contains(dot)) {
+                        gameArea.removeChild(dot);
+                    }
+                }, 1000);
+            }
+
+
+            function startGame() {
+                score = 0;
+                timeLeft = 30;
+                scoreDisplay.textContent = `Score: ${score}`;
+                timerDisplay.textContent = `Time: ${timeLeft}`;
+                gameOverScreen.style.display = 'none';
+
+
+                gameInterval = setInterval(createDot, 800);
+                timerInterval = setInterval(() => {
+                    timeLeft--;
+                    timerDisplay.textContent = `Time: ${timeLeft}`;
+
+
+                    if (timeLeft <= 0) {
+                        endGame();
+                    }
+                }, 1000);
+            }
+
+
+            function endGame() {
+                clearInterval(gameInterval);
+                clearInterval(timerInterval);
+                gameArea.innerHTML = '';
+                gameOverScreen.style.display = 'block';
+                finalScoreDisplay.textContent = score;
+            }
+
+
+            // Start the game initially
+            startGame();
+        </script>
+</body>
+</html>
