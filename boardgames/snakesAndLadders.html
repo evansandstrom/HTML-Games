@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Minecraft Mountainscape</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+        }
+    </style>
+</head>
+<body>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer();
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const geometry = new THREE.BoxGeometry(1, 1, 1);
+        const materials = [];
+
+        for (let i = 0; i < 6; i++) {
+            const material = new THREE.MeshBasicMaterial({ color: 0x777777 * (i + 1) });
+            materials.push(material);
+        }
+
+        const mountainMesh = new THREE.Mesh(new THREE.BoxGeometry(500, 300, 500), new THREE.MeshFaceMaterial(materials));
+        mountainMesh.position.set(-250, -150, -250);
+        scene.add(mountainMesh);
+
+        // Generate random mountain height data
+        const mountainData = generateMountainData(500, 300);
+
+        // Update mountain mesh geometry based on data
+        updateMountainMesh(mountainMesh, mountainData);
+
+        function generateMountainData(width, height) {
+            const data = new Array(width).fill(null).map(() => new Array(height).fill(0));
+            for (let x = 0; x < width; x++) {
+                for (let y = 0; y < height; y++) {
+                    const noise = Math.sin(x / 20) * Math.cos(y / 20) * 100;
+                    data[x][y] = Math.max(0, Math.floor(noise));
+                }
+            }
+            return data;
+        }
+
+        function updateMountainMesh(mesh, data) {
+            const geometry = mesh.geometry;
+            geometry.vertices.forEach((vertex, i) => {
+                const x = i % (data.length + 1) - data.length / 2;
+                const z = Math.floor(i / (data.length + 1)) - data.length / 2;
+                const y = data[x + data.length / 2] ? data[x + data.length / 2][z + data.length / 2] : 0;
+                vertex.y = y;
+            });
+            geometry.computeVertexNormals();
+            geometry.computeFaceNormals();
+            mesh.geometry = geometry;
+        }
+
+        const light = new THREE.DirectionalLight(0xffffff, 1);
+        light.position.set(2, 2, 4);
+        scene.add(light);
+
+        camera.position.z = 500;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            mountainMesh.rotation.y += 0.005;
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
