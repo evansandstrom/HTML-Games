@@ -1,80 +1,223 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>3D Minecraft Mountainscape</title>
-    <style>
-        body {
-            margin: 0;
-            overflow: hidden;
-        }
-    </style>
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Snakes and Ladders</title>
+        <style>
+            body {
+                font-family: Arial, sans-serif;
+                text-align: center;
+            }
+            .board {
+                display: grid;
+                grid-template-columns: repeat(10, 50px);
+                grid-template-rows: repeat(10, 50px);
+                margin: 20px auto;
+                width: 500px;
+                border: 2px solid #000;
+                position: relative;
+            }
+            .cell {
+                width: 50px;
+                height: 50px;
+                border: 1px solid #ccc;
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                position: relative;
+            }
+            .line {
+                position: absolute;
+                width: 2px;
+                height: 2px;
+            }
+            .snake {
+                background-color: green;
+            }
+            .ladder {
+                background-color: yellow;
+            }
+            .player {
+                width: 20px;
+                height: 20px;
+                border-radius: 50%;
+            }
+            .player1 {
+                background-color: red;
+            }
+            .player2 {
+                background-color: blue;
+            }
+            .controls {
+                margin-top: 20px;
+            }
+            .message {
+                margin-top: 10px;
+            }
+        </style>
 </head>
 <body>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script>
-        const scene = new THREE.Scene();
-        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
-        document.body.appendChild(renderer.domElement);
+        <h1>Snakes and Ladders</h1>
+        <div id="board" class="board"></div>
+        <div class="controls">
+            <button id="rollDice">Roll Dice</button>
+        </div>
+        <div class="message" id="message"></div>
 
-        const geometry = new THREE.BoxGeometry(1, 1, 1);
-        const materials = [];
 
-        for (let i = 0; i < 6; i++) {
-            const material = new THREE.MeshBasicMaterial({ color: 0x777777 * (i + 1) });
-            materials.push(material);
-        }
+        <script>
+            const boardSize = 100;
+            const board = document.getElementById('board');
+            const message = document.getElementById('message');
+            const rollDiceButton = document.getElementById('rollDice');
 
-        const mountainMesh = new THREE.Mesh(new THREE.BoxGeometry(500, 300, 500), new THREE.MeshFaceMaterial(materials));
-        mountainMesh.position.set(-250, -150, -250);
-        scene.add(mountainMesh);
 
-        // Generate random mountain height data
-        const mountainData = generateMountainData(500, 300);
+            const snakes = {
+                16: 6,
+                47: 26,
+                49: 11,
+                56: 53,
+                62: 19,
+                87: 24,
+                93: 73,
+                95: 75,
+                98: 78
+            };
+            const ladders = {
+                2: 38,
+                7: 14,
+                8: 31,
+                15: 26,
+                28: 84,
+                36: 44,
+                51: 67,
+                71: 91,
+                78: 98
+            };
 
-        // Update mountain mesh geometry based on data
-        updateMountainMesh(mountainMesh, mountainData);
 
-        function generateMountainData(width, height) {
-            const data = new Array(width).fill(null).map(() => new Array(height).fill(0));
-            for (let x = 0; x < width; x++) {
-                for (let y = 0; y < height; y++) {
-                    const noise = Math.sin(x / 20) * Math.cos(y / 20) * 100;
-                    data[x][y] = Math.max(0, Math.floor(noise));
+            const players = [
+                { position: 0, className: 'player1', name: 'Player 1' },
+                { position: 0, className: 'player2', name: 'Player 2' }
+            ];
+            let currentPlayerIndex = 0;
+
+
+            function createBoard() {
+                const cells = [];
+                for (let i = boardSize; i > 0; i--) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('cell');
+                    cell.textContent = i;
+                    cells.push(cell);
+                    board.appendChild(cell);
                 }
+                drawSnakesAndLadders(cells);
             }
-            return data;
-        }
 
-        function updateMountainMesh(mesh, data) {
-            const geometry = mesh.geometry;
-            geometry.vertices.forEach((vertex, i) => {
-                const x = i % (data.length + 1) - data.length / 2;
-                const z = Math.floor(i / (data.length + 1)) - data.length / 2;
-                const y = data[x + data.length / 2] ? data[x + data.length / 2][z + data.length / 2] : 0;
-                vertex.y = y;
+
+            function drawSnakesAndLadders(cells) {
+                const createLine = (startIndex, endIndex, className) => {
+                    const startCell = cells[boardSize - startIndex];
+                    const endCell = cells[boardSize - endIndex];
+                    const startRect = startCell.getBoundingClientRect();
+                    const endRect = endCell.getBoundingClientRect();
+
+
+                    const line = document.createElement('div');
+                    line.classList.add('line', className);
+                    line.style.position = 'absolute';
+                    line.style.backgroundColor = className === 'snake' ? 'green' : 'yellow';
+                    line.style.width = `${Math.hypot(endRect.x - startRect.x, endRect.y - startRect.y)}px`;
+                    line.style.transformOrigin = '0 0';
+                    line.style.transform = `rotate(${Math.atan2(endRect.y - startRect.y, endRect.x - startRect.x)}rad)`;
+                    line.style.left = `${startRect.x - board.offsetLeft + 25}px`;
+                    line.style.top = `${startRect.y - board.offsetTop + 25}px`;
+                    board.appendChild(line);
+                };
+
+
+                Object.keys(snakes).forEach(start => {
+                    createLine(Number(start), snakes[start], 'snake');
+                });
+
+
+                Object.keys(ladders).forEach(start => {
+                    createLine(Number(start), ladders[start], 'ladder');
+                });
+            }
+
+
+            function renderPlayers() {
+                const cells = document.querySelectorAll('.cell');
+                cells.forEach(cell => cell.innerHTML = cell.textContent); // Clear all player positions
+
+
+                players.forEach(player => {
+                    const playerCell = cells[boardSize - player.position];
+                    if (playerCell) {
+                        const playerDiv = document.createElement('div');
+                        playerDiv.classList.add('player', player.className);
+                        playerCell.appendChild(playerDiv);
+                    }
+                });
+            }
+
+
+            function rollDice() {
+                return Math.floor(Math.random() * 6) + 1;
+            }
+
+
+            function movePlayer(player, diceRoll) {
+                let newPosition = player.position + diceRoll;
+
+
+                if (newPosition > boardSize) {
+                    message.textContent = `${player.name} rolled a ${diceRoll}, but cannot move beyond ${boardSize}.`;
+                    return;
+                }
+
+
+                message.textContent = `${player.name} rolled a ${diceRoll}. Moving from ${player.position} to ${newPosition}.`;
+
+
+                if (snakes[newPosition]) {
+                    message.textContent += ` Oh no! A snake! Sliding down to ${snakes[newPosition]}.`;
+                    newPosition = snakes[newPosition];
+                } else if (ladders[newPosition]) {
+                    message.textContent += ` Hooray! A ladder! Climbing up to ${ladders[newPosition]}.`;
+                    newPosition = ladders[newPosition];
+                }
+
+
+                player.position = newPosition;
+
+
+                if (player.position === boardSize) {
+                    message.textContent = `Congratulations, ${player.name}! You won the game!`;
+                    rollDiceButton.disabled = true;
+                }
+
+
+                renderPlayers();
+            }
+
+
+            rollDiceButton.addEventListener('click', () => {
+                const currentPlayer = players[currentPlayerIndex];
+                const diceRoll = rollDice();
+                movePlayer(currentPlayer, diceRoll);
+
+
+                // Switch to the next player
+                currentPlayerIndex = (currentPlayerIndex + 1) % players.length;
             });
-            geometry.computeVertexNormals();
-            geometry.computeFaceNormals();
-            mesh.geometry = geometry;
-        }
 
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(2, 2, 4);
-        scene.add(light);
 
-        camera.position.z = 500;
-
-        function animate() {
-            requestAnimationFrame(animate);
-            mountainMesh.rotation.y += 0.005;
-            renderer.render(scene, camera);
-        }
-
-        animate();
-    </script>
+            createBoard();
+            renderPlayers();
+        </script>
 </body>
 </html>
