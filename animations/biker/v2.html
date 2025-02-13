@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mountain Biker Game</title>
+    <style>
+        body { background-color: #87CEEB; margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let t = 0;
+        const speed = 2;
+        const amplitude = 100;
+        const frequency = 0.01;
+        let isJumping = false;
+        let jumpPower = 0;
+        
+        let obstacles = Array.from({ length: 5 }, () => ({
+            x: Math.random() * canvas.width + canvas.width,
+            y: canvas.height / 2 + Math.sin(Math.random() * 1000) * amplitude,
+            width: 20,
+            height: 40
+        }));
+
+        function drawBike(x, y, angle) {
+            ctx.save();
+            ctx.translate(x, y);
+            ctx.rotate(angle);
+
+            // Wheels
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.arc(-20, 0, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(20, 0, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Frame
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(-20, 0);
+            ctx.lineTo(0, -20);
+            ctx.lineTo(20, 0);
+            ctx.stroke();
+
+            // Seat
+            ctx.beginPath();
+            ctx.moveTo(0, -20);
+            ctx.lineTo(0, -30);
+            ctx.stroke();
+
+            // Rider
+            ctx.fillStyle = "blue";
+            ctx.beginPath();
+            ctx.arc(0, -40, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "blue";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, -30);
+            ctx.lineTo(0, -40);
+            ctx.lineTo(-10, -50);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawTrail() {
+            ctx.beginPath();
+            ctx.strokeStyle = "brown";
+            ctx.lineWidth = 4;
+            for (let x = 0; x < canvas.width; x += 10) {
+                const y = canvas.height / 2 + Math.sin((x + t) * frequency) * amplitude;
+                if (x === 0) {
+                    ctx.moveTo(x, y);
+                } else {
+                    ctx.lineTo(x, y);
+                }
+            }
+            ctx.stroke();
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = "darkred";
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y - obstacle.height, obstacle.width, obstacle.height);
+                obstacle.x -= speed;
+                if (obstacle.x < -obstacle.width) {
+                    obstacle.x = canvas.width + Math.random() * canvas.width;
+                    obstacle.y = canvas.height / 2 + Math.sin(Math.random() * 1000) * amplitude;
+                }
+            });
+        }
+
+        function checkCollision(x, y) {
+            return obstacles.some(obstacle => 
+                x + 20 > obstacle.x && x - 20 < obstacle.x + obstacle.width &&
+                y > obstacle.y - obstacle.height
+            );
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawTrail();
+            drawObstacles();
+
+            let x = canvas.width / 4 + t * speed;
+            let y = canvas.height / 2 + Math.sin((x + t) * frequency) * amplitude;
+            if (isJumping) {
+                y -= jumpPower;
+                jumpPower -= 2;
+                if (jumpPower < -10) {
+                    isJumping = false;
+                }
+            }
+            let angle = Math.atan2(
+                Math.sin((x + t + 1) * frequency) * amplitude - Math.sin((x + t) * frequency) * amplitude,
+                10
+            );
+
+            if (checkCollision(x, y)) {
+                alert("Game Over! Refresh to restart.");
+                return;
+            }
+            
+            drawBike(x, y, angle);
+            t += 2;
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener("keydown", (event) => {
+            if (event.code === "Space" && !isJumping) {
+                isJumping = true;
+                jumpPower = 20;
+            }
+        });
+
+        animate();
+    </script>
+</body>
+</html>
