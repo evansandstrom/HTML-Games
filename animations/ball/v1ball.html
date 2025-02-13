@@ -1,0 +1,67 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainbow Bouncing Balls</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            background: black;
+            position: relative;
+        }
+        .ball {
+            width: 50px;
+            height: 50px;
+            position: absolute;
+            background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            animation: rainbow 2s linear infinite;
+        }
+        @keyframes rainbow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <script>
+        const balls = [];
+        const numBalls = 10;
+        const ballSize = 50;
+        const centerX = window.innerWidth / 2 - ballSize / 2;
+        const centerY = window.innerHeight / 2 - ballSize / 2;
+        
+        for (let i = 0; i < numBalls; i++) {
+            let ball = document.createElement("div");
+            ball.classList.add("ball");
+            document.body.appendChild(ball);
+            
+            let dx = (Math.random() - 0.5) * 6;
+            let dy = (Math.random() - 0.5) * 6;
+            let x = centerX;
+            let y = centerY;
+            
+            balls.push({ element: ball, dx, dy, x, y });
+        }
+        
+        function moveBalls() {
+            balls.forEach(ball => {
+                ball.x += ball.dx;
+                ball.y += ball.dy;
+                
+                if (ball.x <= 0 || ball.x + ballSize >= window.innerWidth) ball.dx *= -1;
+                if (ball.y <= 0 || ball.y + ballSize >= window.innerHeight) ball.dy *= -1;
+                
+                ball.element.style.transform = `translate(${ball.x}px, ${ball.y}px)`;
+            });
+            requestAnimationFrame(moveBalls);
+        }
+        
+        moveBalls();
+    </script>
+</body>
+</html>
