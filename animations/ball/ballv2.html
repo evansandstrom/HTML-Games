@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainbow Animation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            background: black;
+            position: relative;
+        }
+        .box {
+            width: 100px;
+            height: 100px;
+            position: absolute;
+            background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet);
+            border-radius: 50%;
+            box-shadow: 0 0 20px rgba(255, 255, 255, 0.8);
+            animation: rainbow 2s linear infinite;
+        }
+        @keyframes rainbow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+    </style>
+</head>
+<body>
+    <div class="box" id="box"></div>
+    <script>
+        const box = document.getElementById("box");
+        let dx = 3, dy = 3;
+        let x = Math.random() * (window.innerWidth - 100);
+        let y = Math.random() * (window.innerHeight - 100);
+
+        function moveBox() {
+            x += dx;
+            y += dy;
+            if (x <= 0 || x + 100 >= window.innerWidth) dx *= -1;
+            if (y <= 0 || y + 100 >= window.innerHeight) dy *= -1;
+            box.style.transform = `translate(${x}px, ${y}px)`;
+            requestAnimationFrame(moveBox);
+        }
+        moveBox();
+
+        document.addEventListener("click", (e) => {
+            dx = (Math.random() - 0.5) * 10;
+            dy = (Math.random() - 0.5) * 10;
+        });
+    </script>
+</body>
+</html>
