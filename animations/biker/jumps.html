@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Bike Jump Game</title>
+    <style>
+        body { background-color: #87CEEB; margin: 0; overflow: hidden; }
+        canvas { display: block; }
+    </style>
+</head>
+<body>
+    <canvas id="canvas"></canvas>
+    <script>
+        const canvas = document.getElementById("canvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+
+        let bike = {
+            x: 100,
+            y: canvas.height / 2,
+            angle: 0,
+            velocityY: 0,
+            isJumping: false,
+            onGround: true
+        };
+
+        const gravity = 0.6;
+        const jumpStrength = -12;
+        const rotationSpeed = 0.05;
+        let obstacles = [{ x: 400, y: canvas.height / 2 + 50, width: 50, height: 20 }];
+
+        function drawBike() {
+            ctx.save();
+            ctx.translate(bike.x, bike.y);
+            ctx.rotate(bike.angle);
+            
+            // Wheels
+            ctx.fillStyle = "black";
+            ctx.beginPath();
+            ctx.arc(-20, 0, 15, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.beginPath();
+            ctx.arc(20, 0, 15, 0, Math.PI * 2);
+            ctx.fill();
+            
+            // Frame
+            ctx.strokeStyle = "red";
+            ctx.lineWidth = 4;
+            ctx.beginPath();
+            ctx.moveTo(-20, 0);
+            ctx.lineTo(0, -20);
+            ctx.lineTo(20, 0);
+            ctx.stroke();
+
+            // Seat
+            ctx.beginPath();
+            ctx.moveTo(0, -20);
+            ctx.lineTo(0, -30);
+            ctx.stroke();
+
+            // Rider
+            ctx.fillStyle = "blue";
+            ctx.beginPath();
+            ctx.arc(0, -40, 10, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.strokeStyle = "blue";
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.moveTo(0, -30);
+            ctx.lineTo(0, -40);
+            ctx.lineTo(-10, -50);
+            ctx.stroke();
+
+            ctx.restore();
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = "darkred";
+            obstacles.forEach(obstacle => {
+                ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height);
+                obstacle.x -= 3;
+                if (obstacle.x < -obstacle.width) {
+                    obstacle.x = canvas.width + Math.random() * 500;
+                    obstacle.y = canvas.height / 2 + 50;
+                }
+            });
+        }
+
+        function checkCollision() {
+            if (bike.y + 15 >= canvas.height / 2 + 50) {
+                bike.y = canvas.height / 2 + 50 - 15;
+                bike.velocityY = 0;
+                bike.angle = 0;
+                bike.onGround = true;
+                if (Math.abs(bike.angle) > 1) {
+                    alert("Game Over! You landed on your head. Refresh to restart.");
+                    document.location.reload();
+                }
+            }
+        }
+
+        function update() {
+            bike.velocityY += gravity;
+            bike.y += bike.velocityY;
+            bike.onGround = false;
+            checkCollision();
+        }
+
+        function animate() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawObstacles();
+            update();
+            drawBike();
+            requestAnimationFrame(animate);
+        }
+
+        window.addEventListener("keydown", (event) => {
+            if (event.code === "Space" && bike.onGround) {
+                bike.velocityY = jumpStrength;
+                bike.onGround = false;
+            } else if (event.code === "ArrowLeft") {
+                bike.angle -= rotationSpeed;
+            } else if (event.code === "ArrowRight") {
+                bike.angle += rotationSpeed;
+            }
+        });
+
+        animate();
+    </script>
+</body>
+</html>
