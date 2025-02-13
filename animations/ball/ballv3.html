@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Rainbow Animation</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            height: 100vh;
+            background: black;
+            position: relative;
+        }
+        .box {
+            width: 50px;
+            height: 50px;
+            position: absolute;
+            background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet);
+            border-radius: 50%;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            animation: rainbow 2s linear infinite;
+        }
+        .trail {
+            position: absolute;
+            width: 50px;
+            height: 50px;
+            border-radius: 50%;
+            background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet);
+            opacity: 1;
+            box-shadow: 0 0 10px rgba(255, 255, 255, 0.8);
+            animation: fadeOut 1s linear forwards;
+        }
+        @keyframes rainbow {
+            0% { filter: hue-rotate(0deg); }
+            100% { filter: hue-rotate(360deg); }
+        }
+        @keyframes fadeOut {
+            0% { opacity: 1; }
+            100% { opacity: 0; }
+        }
+    </style>
+</head>
+<body>
+    <div class="box" id="box"></div>
+    <script>
+        const box = document.getElementById("box");
+        let dx = 2, dy = 2;
+        let x = window.innerWidth / 2, y = window.innerHeight / 2;
+        
+        function moveBox() {
+            x += dx;
+            y += dy;
+
+            if (x + 50 > window.innerWidth || x < 0) dx *= -1;
+            if (y + 50 > window.innerHeight || y < 0) dy *= -1;
+
+            box.style.transform = `translate(${x}px, ${y}px)`;
+            leaveTrail(x, y);
+            requestAnimationFrame(moveBox);
+        }
+        
+        function leaveTrail(x, y) {
+            const trail = document.createElement("div");
+            trail.className = "trail";
+            trail.style.transform = `translate(${x}px, ${y}px)`;
+            document.body.appendChild(trail);
+            setTimeout(() => trail.remove(), 1000);
+        }
+
+        document.addEventListener("click", (e) => {
+            x = e.clientX - 25;
+            y = e.clientY - 25;
+            dx = (Math.random() - 0.5) * 10;
+            dy = (Math.random() - 0.5) * 10;
+        });
+
+        moveBox();
+    </script>
+</body>
+</html>
