@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Art Creator</title>
+    <style>
+        body {
+            margin: 0;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid black;
+            margin-top: 20px;
+            cursor: crosshair;
+        }
+        .controls {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Art Creator</h1>
+    <div class="controls">
+        <label for="tool">Tool:</label>
+        <select id="tool">
+            <option value="draw">Draw</option>
+            <option value="dot">Dot</option>
+            <option value="line">Line</option>
+            <option value="rectangle">Rectangle</option>
+            <option value="circle">Circle</option>
+            <option value="triangle">Triangle</option>
+        </select>
+        
+        <label for="color">Color:</label>
+        <input type="color" id="color">
+        
+        <button onclick="clearCanvas()">Clear Canvas</button>
+    </div>
+    <canvas id="artCanvas" width="800" height="500"></canvas>
+    
+    <script>
+        const canvas = document.getElementById("artCanvas");
+        const ctx = canvas.getContext("2d");
+        let toolSelect = document.getElementById("tool");
+        let colorInput = document.getElementById("color");
+        let drawing = false;
+        let startX, startY;
+
+        canvas.addEventListener("mousedown", (event) => {
+            let rect = canvas.getBoundingClientRect();
+            startX = event.clientX - rect.left;
+            startY = event.clientY - rect.top;
+            drawing = true;
+
+            if (toolSelect.value === "dot") {
+                drawDot(startX, startY);
+            }
+        });
+
+        canvas.addEventListener("mousemove", (event) => {
+            if (!drawing || toolSelect.value !== "draw") return;
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+            drawLine(startX, startY, x, y);
+            startX = x;
+            startY = y;
+        });
+
+        canvas.addEventListener("mouseup", (event) => {
+            if (!drawing) return;
+            let rect = canvas.getBoundingClientRect();
+            let endX = event.clientX - rect.left;
+            let endY = event.clientY - rect.top;
+            
+            if (toolSelect.value === "line") {
+                drawLine(startX, startY, endX, endY);
+            } else if (toolSelect.value === "rectangle") {
+                drawRectangle(startX, startY, endX, endY);
+            } else if (toolSelect.value === "circle") {
+                drawCircle(startX, startY, endX, endY);
+            } else if (toolSelect.value === "triangle") {
+                drawTriangle(startX, startY, endX, endY);
+            }
+            drawing = false;
+        });
+
+        function drawDot(x, y) {
+            ctx.fillStyle = colorInput.value;
+            ctx.beginPath();
+            ctx.arc(x, y, 5, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawLine(x1, y1, x2, y2) {
+            ctx.strokeStyle = colorInput.value;
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.stroke();
+        }
+
+        function drawRectangle(x1, y1, x2, y2) {
+            ctx.fillStyle = colorInput.value;
+            ctx.fillRect(x1, y1, x2 - x1, y2 - y1);
+        }
+
+        function drawCircle(x1, y1, x2, y2) {
+            let radius = Math.sqrt(Math.pow(x2 - x1, 2) + Math.pow(y2 - y1, 2));
+            ctx.fillStyle = colorInput.value;
+            ctx.beginPath();
+            ctx.arc(x1, y1, radius, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function drawTriangle(x1, y1, x2, y2) {
+            ctx.fillStyle = colorInput.value;
+            ctx.beginPath();
+            ctx.moveTo(x1, y1);
+            ctx.lineTo(x2, y2);
+            ctx.lineTo(x1 - (x2 - x1), y2);
+            ctx.closePath();
+            ctx.fill();
+        }
+
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+</html>
