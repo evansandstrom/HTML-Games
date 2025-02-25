@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Platformer Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            background-color: skyblue;
+        }
+        canvas {
+            display: block;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        canvas.width = 800;
+        canvas.height = 400;
+
+        let player = { x: 50, y: 350, width: 30, height: 30, dy: 0, onGround: false };
+        let gravity = 0.5;
+        let obstacles = [{ x: 300, y: 350, width: 30, height: 30 }];
+        let goal = { x: 700, y: 350, width: 30, height: 30 };
+        let level = 1;
+
+        function drawPlayer() {
+            ctx.fillStyle = "red";
+            ctx.fillRect(player.x, player.y, player.width, player.height);
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = "black";
+            obstacles.forEach(obstacle => ctx.fillRect(obstacle.x, obstacle.y, obstacle.width, obstacle.height));
+        }
+
+        function drawGoal() {
+            ctx.fillStyle = "gold";
+            ctx.fillRect(goal.x, goal.y, goal.width, goal.height);
+        }
+
+        function update() {
+            player.dy += gravity;
+            player.y += player.dy;
+
+            if (player.y + player.height >= canvas.height) {
+                player.y = canvas.height - player.height;
+                player.dy = 0;
+                player.onGround = true;
+            }
+            
+            obstacles.forEach(obstacle => {
+                if (player.x < obstacle.x + obstacle.width &&
+                    player.x + player.width > obstacle.x &&
+                    player.y < obstacle.y + obstacle.height &&
+                    player.y + player.height > obstacle.y) {
+                    player.x = 50;
+                    player.y = 350;
+                }
+            });
+
+            if (player.x + player.width > goal.x && player.y + player.height > goal.y) {
+                nextLevel();
+            }
+        }
+
+        function nextLevel() {
+            level++;
+            player.x = 50;
+            player.y = 350;
+            obstacles.push({ x: 300 + level * 50, y: 350, width: 30, height: 30 });
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlayer();
+            drawObstacles();
+            drawGoal();
+        }
+
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        document.addEventListener("keydown", function(event) {
+            if (event.code === "Space" && player.onGround) {
+                player.dy = -10;
+                player.onGround = false;
+            }
+        });
+
+        gameLoop();
+    </script>
+</body>
+</html>
