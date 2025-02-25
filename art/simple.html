@@ -1,0 +1,63 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Art Creator</title>
+    <style>
+        body {
+            margin: 0;
+            text-align: center;
+        }
+        canvas {
+            border: 1px solid black;
+            margin-top: 20px;
+        }
+        .controls {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Art Creator</h1>
+    <div class="controls">
+        <label for="shape">Shape:</label>
+        <select id="shape">
+            <option value="rectangle">Rectangle</option>
+            <option value="circle">Circle</option>
+        </select>
+        
+        <label for="color">Color:</label>
+        <input type="color" id="color">
+        
+        <button onclick="clearCanvas()">Clear Canvas</button>
+    </div>
+    <canvas id="artCanvas" width="800" height="500"></canvas>
+    
+    <script>
+        const canvas = document.getElementById("artCanvas");
+        const ctx = canvas.getContext("2d");
+        let shapeSelect = document.getElementById("shape");
+        let colorInput = document.getElementById("color");
+
+        canvas.addEventListener("click", (event) => {
+            let rect = canvas.getBoundingClientRect();
+            let x = event.clientX - rect.left;
+            let y = event.clientY - rect.top;
+            let shape = shapeSelect.value;
+            let color = colorInput.value;
+
+            ctx.fillStyle = color;
+            if (shape === "rectangle") {
+                ctx.fillRect(x - 25, y - 25, 50, 50);
+            } else if (shape === "circle") {
+                ctx.beginPath();
+                ctx.arc(x, y, 25, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+        
+        function clearCanvas() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+        }
+    </script>
+</body>
+</html>
