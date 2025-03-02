@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Balance of Mind</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; background-color: #f4f4f4; }
+        canvas { background: #ffffff; display: block; margin: auto; border: 2px solid black; }
+    </style>
+</head>
+<body>
+    <h1>Balance of Mind</h1>
+    <p>Let go of control. Flow with the present.</p>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const player = { x: 200, y: 500, size: 20, speed: 5 };
+        let obstacles = [];
+        let score = 0;
+        let lastTime = 0;
+
+        function drawPlayer() {
+            ctx.fillStyle = 'blue';
+            ctx.beginPath();
+            ctx.arc(player.x, player.y, player.size, 0, Math.PI * 2);
+            ctx.fill();
+        }
+
+        function createObstacle() {
+            let size = Math.random() * 30 + 20;
+            obstacles.push({ x: Math.random() * (canvas.width - size), y: 0, size, speed: Math.random() * 2 + 1 });
+        }
+
+        function drawObstacles() {
+            ctx.fillStyle = 'red';
+            obstacles.forEach(obs => {
+                ctx.fillRect(obs.x, obs.y, obs.size, obs.size);
+            });
+        }
+
+        function updateObstacles() {
+            obstacles.forEach(obs => obs.y += obs.speed);
+            obstacles = obstacles.filter(obs => obs.y < canvas.height);
+        }
+
+        function checkCollision() {
+            for (let obs of obstacles) {
+                let dx = player.x - (obs.x + obs.size / 2);
+                let dy = player.y - (obs.y + obs.size / 2);
+                let distance = Math.sqrt(dx * dx + dy * dy);
+                if (distance < player.size + obs.size / 2) {
+                    alert('You resisted too much. Start again.');
+                    document.location.reload();
+                }
+            }
+        }
+
+        function update(time) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawPlayer();
+            drawObstacles();
+            updateObstacles();
+            checkCollision();
+            
+            if (time - lastTime > 1000) {
+                createObstacle();
+                score++;
+                lastTime = time;
+            }
+            requestAnimationFrame(update);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft' && player.x - player.size > 0) player.x -= player.speed;
+            if (e.key === 'ArrowRight' && player.x + player.size < canvas.width) player.x += player.speed;
+        });
+
+        update();
+    </script>
+</body>
+</html>
