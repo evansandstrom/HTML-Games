@@ -1,0 +1,66 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Faith in Flow</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; }
+        canvas { background: #f0f0f0; display: block; margin: auto; }
+    </style>
+</head>
+<body>
+    <h1>Faith in Flow</h1>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        
+        const types = [
+            [[1,1,1,1]], // I
+            [[1,1],[1,1]], // O
+            [[0,1,0],[1,1,1]], // T
+            [[1,1,0],[0,1,1]], // S
+            [[0,1,1],[1,1,0]]  // Z
+        ];
+
+        let blocks = [];
+        let fallingBlock = createBlock();
+        let lastTime = 0;
+
+        function createBlock() {
+            let shape = types[Math.floor(Math.random() * types.length)];
+            return { x: 3, y: 0, shape };
+        }
+
+        function drawBlock(block, color = 'black') {
+            ctx.fillStyle = color;
+            block.shape.forEach((row, i) => {
+                row.forEach((cell, j) => {
+                    if (cell) ctx.fillRect((block.x + j) * 30, (block.y + i) * 30, 30, 30);
+                });
+            });
+        }
+
+        function update(time = 0) {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawBlock(fallingBlock);
+            blocks.forEach(b => drawBlock(b, 'gray'));
+            
+            if (time - lastTime > 500) {
+                fallingBlock.y++;
+                lastTime = time;
+            }
+            requestAnimationFrame(update);
+        }
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'ArrowLeft') fallingBlock.x--;
+            if (e.key === 'ArrowRight') fallingBlock.x++;
+            if (e.key === 'ArrowDown') fallingBlock.y++;
+        });
+
+        update();
+    </script>
+</body>
+</html>
