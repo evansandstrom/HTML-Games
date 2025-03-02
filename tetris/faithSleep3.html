@@ -1,1 +1,73 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tranquil Flow</title>
+    <style>
+        body { text-align: center; font-family: Arial, sans-serif; background-color: #001f3f; color: white; }
+        canvas { background: #111; display: block; margin: auto; border: 2px solid #fff; }
+    </style>
+</head>
+<body>
+    <h1>Tranquil Flow</h1>
+    <p>Let go. Breathe. Flow with the moment.</p>
+    <canvas id="gameCanvas" width="400" height="600"></canvas>
+    <audio id="bgMusic" loop>
+        <source src="https://www.bensound.com/bensound-music/bensound-slowmotion.mp3" type="audio/mpeg">
+    </audio>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+        const music = document.getElementById('bgMusic');
+        const bubbles = [];
+
+        function createBubble() {
+            return {
+                x: Math.random() * canvas.width,
+                y: canvas.height,
+                size: Math.random() * 10 + 5,
+                speed: Math.random() * 1.5 + 0.5,
+                opacity: Math.random() * 0.5 + 0.5
+            };
+        }
+
+        function drawBubbles() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = 'rgba(173, 216, 230, 0.5)';
+            bubbles.forEach(bubble => {
+                ctx.globalAlpha = bubble.opacity;
+                ctx.beginPath();
+                ctx.arc(bubble.x, bubble.y, bubble.size, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.globalAlpha = 1;
+            });
+        }
+
+        function updateBubbles() {
+            bubbles.forEach(bubble => bubble.y -= bubble.speed);
+            while (bubbles.length < 50) {
+                bubbles.push(createBubble());
+            }
+            bubbles.forEach((bubble, i) => {
+                if (bubble.y + bubble.size < 0) {
+                    bubbles.splice(i, 1);
+                }
+            });
+        }
+
+        function animate() {
+            drawBubbles();
+            updateBubbles();
+            requestAnimationFrame(animate);
+        }
+
+        document.body.addEventListener('click', () => {
+            music.play();
+        });
+
+        animate();
+    </script>
+</body>
+</html>
 
