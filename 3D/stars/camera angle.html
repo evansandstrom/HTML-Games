@@ -1,0 +1,160 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hypnotic 3D Visualization with Bouncing Lasers</title>
+    <style>
+        body { margin: 0; overflow: hidden; }
+        #controls {
+            position: absolute;
+            top: 10px;
+            left: 10px;
+            z-index: 100;
+        }
+        button {
+            font-size: 18px;
+            margin: 5px;
+            padding: 5px 10px;
+        }
+    </style>
+</head>
+<body>
+    <div id="controls">
+        <button id="increase">+</button>
+        <button id="decrease">-</button>
+        <button id="zoomIn">Zoom In</button>
+        <button id="zoomOut">Zoom Out</button>
+    </div>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script>
+        let scene, camera, renderer, particles;
+        let lasers = [];
+        let numLasers = 1;
+        let speed = 10;
+
+        function init() {
+            scene = new THREE.Scene();
+            camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 2000);
+            renderer = new THREE.WebGLRenderer();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+            document.body.appendChild(renderer.domElement);
+
+            const geometry = new THREE.BufferGeometry();
+            const vertices = [];
+            const colors = [];
+
+            for (let i = 0; i < 10000; i++) {
+                vertices.push(THREE.MathUtils.randFloatSpread(2000));
+                vertices.push(THREE.MathUtils.randFloatSpread(2000));
+                vertices.push(THREE.MathUtils.randFloatSpread(2000));
+
+                colors.push(Math.random(), Math.random(), Math.random());
+            }
+
+            geometry.setAttribute('position', new THREE.Float32BufferAttribute(vertices, 3));
+            geometry.setAttribute('color', new THREE.Float32BufferAttribute(colors, 3));
+
+            const material = new THREE.PointsMaterial({
+                size: 3,
+                vertexColors: true,
+                blending: THREE.AdditiveBlending,
+                transparent: true
+            });
+
+            particles = new THREE.Points(geometry, material);
+            scene.add(particles);
+
+            camera.position.z = 1000;
+
+            createLaser();
+            animate();
+        }
+
+        function createLaser() {
+            const laserGeometry = new THREE.BufferGeometry();
+            const positions = new Float32Array(2 * 3);
+            laserGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+            const randomColor = new THREE.Color(Math.random(), Math.random(), Math.random());
+
+            const laserMaterial = new THREE.LineBasicMaterial({
+                color: randomColor,
+                linewidth: 2
+            });
+
+            const laser = new THREE.Line(laserGeometry, laserMaterial);
+            laser.startPoint = getRandomStar();
+            laser.endPoint = getRandomStar();
+            laser.direction = new THREE.Vector3().subVectors(laser.endPoint, laser.startPoint).normalize();
+            laser.speed = 5 + Math.random() * 5;
+
+            scene.add(laser);
+            lasers.push(laser);
+        }
+
+        function getRandomStar() {
+            const positions = particles.geometry.attributes.position.array;
+            const index = Math.floor(Math.random() * positions.length / 3) * 3;
+            return new THREE.Vector3(positions[index], positions[index + 1], positions[index + 2]);
+        }
+
+        function updateLasers() {
+            lasers.forEach(laser => {
+                const positions = laser.geometry.attributes.position.array;
+                laser.startPoint.add(laser.direction.clone().multiplyScalar(laser.speed));
+                if (laser.startPoint.distanceTo(laser.endPoint) < 10) {
+                    laser.endPoint = getRandomStar();
+                    laser.direction = new THREE.Vector3().subVectors(laser.endPoint, laser.startPoint).normalize();
+                }
+                positions[0] = laser.startPoint.x;
+                positions[1] = laser.startPoint.y;
+                positions[2] = laser.startPoint.z;
+                positions[3] = laser.endPoint.x;
+                positions[4] = laser.endPoint.y;
+                positions[5] = laser.endPoint.z;
+                laser.geometry.attributes.position.needsUpdate = true;
+            });
+        }
+
+        function animate() {
+            requestAnimationFrame(animate);
+            renderer.render(scene, camera);
+            updateLasers();
+        }
+
+        window.addEventListener('keydown', (event) => {
+            switch (event.key) {
+                case 'ArrowUp':
+                    camera.position.z -= speed;
+                    break;
+                case 'ArrowDown':
+                    camera.position.z += speed;
+                    break;
+                case 'ArrowLeft':
+                    camera.rotation.y += 0.05;
+                    break;
+                case 'ArrowRight':
+                    camera.rotation.y -= 0.05;
+                    break;
+            }
+        });
+
+        init();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
+        document.getElementById('zoomIn').addEventListener('click', () => {
+            camera.position.z -= 100;
+        });
+
+        document.getElementById('zoomOut').addEventListener('click', () => {
+            camera.position.z += 100;
+        });
+    </script>
+</body>
+</html>
