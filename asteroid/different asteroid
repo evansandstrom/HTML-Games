@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Dodger</title>
+    <style>
+        body { text-align: center; background-color: black; }
+        canvas { background-color: #111; }
+    </style>
+</head>
+<body>
+    <h1 style="color: white;">Space Dodger</h1>
+    <canvas id="gameCanvas" width="400" height="500"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
+        
+        let spaceship = { x: 180, y: 450, width: 40, height: 40 };
+        let asteroids = [];
+        let stars = [];
+        let score = 0;
+        let gameOver = false;
+        
+        function drawSpaceship() {
+            ctx.fillStyle = "blue";
+            ctx.fillRect(spaceship.x, spaceship.y, spaceship.width, spaceship.height);
+        }
+        
+        function drawAsteroids() {
+            ctx.fillStyle = "gray";
+            asteroids.forEach(asteroid => {
+                ctx.fillRect(asteroid.x, asteroid.y, asteroid.size, asteroid.size);
+            });
+        }
+        
+        function drawStars() {
+            ctx.fillStyle = "yellow";
+            stars.forEach(star => {
+                ctx.fillRect(star.x, star.y, 10, 10);
+            });
+        }
+        
+        function moveAsteroids() {
+            asteroids.forEach(asteroid => {
+                asteroid.y += asteroid.speed;
+            });
+            asteroids = asteroids.filter(asteroid => asteroid.y < canvas.height);
+        }
+        
+        function moveStars() {
+            stars.forEach(star => {
+                star.y += 2;
+            });
+            stars = stars.filter(star => star.y < canvas.height);
+        }
+        
+        function checkCollisions() {
+            asteroids.forEach(asteroid => {
+                if (spaceship.x < asteroid.x + asteroid.size &&
+                    spaceship.x + spaceship.width > asteroid.x &&
+                    spaceship.y < asteroid.y + asteroid.size &&
+                    spaceship.y + spaceship.height > asteroid.y) {
+                    gameOver = true;
+                }
+            });
+            
+            stars.forEach((star, index) => {
+                if (spaceship.x < star.x + 10 &&
+                    spaceship.x + spaceship.width > star.x &&
+                    spaceship.y < star.y + 10 &&
+                    spaceship.y + spaceship.height > star.y) {
+                    score += 10;
+                    stars.splice(index, 1);
+                }
+            });
+        }
+        
+        function gameLoop() {
+            if (gameOver) {
+                ctx.fillStyle = "red";
+                ctx.font = "30px Arial";
+                ctx.fillText("Game Over!", 120, 250);
+                return;
+            }
+            
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+            drawSpaceship();
+            drawAsteroids();
+            drawStars();
+            moveAsteroids();
+            moveStars();
+            checkCollisions();
+            
+            ctx.fillStyle = "white";
+            ctx.font = "20px Arial";
+            ctx.fillText("Score: " + score, 10, 30);
+            
+            requestAnimationFrame(gameLoop);
+        }
+        
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowLeft" && spaceship.x > 0) {
+                spaceship.x -= 20;
+            }
+            if (event.key === "ArrowRight" && spaceship.x < canvas.width - spaceship.width) {
+                spaceship.x += 20;
+            }
+        });
+        
+        setInterval(() => {
+            asteroids.push({ x: Math.random() * 360, y: 0, size: 30, speed: Math.random() * 3 + 2 });
+        }, 1000);
+        
+        setInterval(() => {
+            stars.push({ x: Math.random() * 390, y: 0 });
+        }, 1500);
+        
+        gameLoop();
+    </script>
+</body>
+</html>
