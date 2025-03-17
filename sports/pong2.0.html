@@ -1,0 +1,133 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Pong Game</title>
+    <style>
+        body {
+            margin: 0;
+            overflow: hidden;
+            text-align: center;
+            font-family: Arial, sans-serif;
+            color: white;
+            background: black;
+        }
+        canvas {
+            display: block;
+            margin: auto;
+        }
+    </style>
+</head>
+<body>
+    <h1>Evan's Pong</h1>
+    <canvas id="gameCanvas"></canvas>
+    <script>
+        const canvas = document.getElementById("gameCanvas");
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight * 0.9;
+        const ctx = canvas.getContext("2d");
+
+        const paddleWidth = 10, paddleHeight = 100;
+        let player = { x: 20, y: canvas.height / 2 - paddleHeight / 2, dy: 0, speed: 5, score: 0 };
+        let ai = { x: canvas.width - 30, y: canvas.height / 2 - paddleHeight / 2, speed: 4, score: 0 };
+        let ball = { x: canvas.width / 2, y: canvas.height / 2, radius: 7, dx: 5, dy: 5 };
+        let highScore = 0;
+
+        document.addEventListener("keydown", (event) => {
+            if (event.key === "ArrowUp") player.dy = -player.speed;
+            if (event.key === "ArrowDown") player.dy = player.speed;
+        });
+        document.addEventListener("keyup", (event) => {
+            if (event.key === "ArrowUp" || event.key === "ArrowDown") player.dy = 0;
+        });
+
+        function movePlayer() {
+            player.y += player.dy;
+            if (player.y < 0) player.y = 0;
+            if (player.y + paddleHeight > canvas.height) player.y = canvas.height - paddleHeight;
+        }
+
+        function moveAI() {
+            if (ball.y > ai.y + paddleHeight / 2) ai.y += ai.speed;
+            if (ball.y < ai.y + paddleHeight / 2) ai.y -= ai.speed;
+            if (ai.y < 0) ai.y = 0;
+            if (ai.y + paddleHeight > canvas.height) ai.y = canvas.height - paddleHeight;
+        }
+
+        function moveBall() {
+            ball.x += ball.dx;
+            ball.y += ball.dy;
+
+            if (ball.y - ball.radius < 0 || ball.y + ball.radius > canvas.height) ball.dy *= -1;
+
+            if (
+                ball.x - ball.radius < player.x + paddleWidth &&
+                ball.y > player.y && ball.y < player.y + paddleHeight
+            ) {
+                ball.dx *= -1;
+            }
+
+            if (
+                ball.x + ball.radius > ai.x &&
+                ball.y > ai.y && ball.y < ai.y + paddleHeight
+            ) {
+                ball.dx *= -1;
+            }
+
+            if (ball.x < 0) {
+                ai.score++;
+                resetBall();
+            }
+            if (ball.x > canvas.width) {
+                player.score++;
+                resetBall();
+            }
+
+            highScore = Math.max(highScore, player.score);
+        }
+
+        function resetBall() {
+            ball.x = canvas.width / 2;
+            ball.y = canvas.height / 2;
+            ball.dx *= -1;
+        }
+
+        function draw() {
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            ctx.fillStyle = player.score % 2 === 0 ? "white" : "red";
+            ctx.fillRect(player.x, player.y, paddleWidth, paddleHeight);
+            
+            ctx.fillStyle = ai.score % 2 === 0 ? "white" : "blue";
+            ctx.fillRect(ai.x, ai.y, paddleWidth, paddleHeight);
+            
+            ctx.fillStyle = "white";
+            ctx.beginPath();
+            ctx.arc(ball.x, ball.y, ball.radius, 0, Math.PI * 2);
+            ctx.fill();
+
+            ctx.setLineDash([10, 15]);
+            ctx.beginPath();
+            ctx.moveTo(canvas.width / 2, 0);
+            ctx.lineTo(canvas.width / 2, canvas.height);
+            ctx.strokeStyle = "white";
+            ctx.stroke();
+            ctx.setLineDash([]);
+
+            ctx.font = "24px Arial";
+            ctx.fillText("Player: " + player.score, 50, 50);
+            ctx.fillText("AI: " + ai.score, canvas.width - 150, 50);
+            ctx.fillText("High Score: " + highScore, canvas.width / 2 - 80, 50);
+        }
+
+        function gameLoop() {
+            movePlayer();
+            moveAI();
+            moveBall();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        gameLoop();
+    </script>
+</body>
+</html>
