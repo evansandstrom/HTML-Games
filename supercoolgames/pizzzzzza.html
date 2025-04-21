@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Dodge the Emojis!</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: sans-serif;
+      background: #1e1e1e;
+      color: #fff;
+      text-align: center;
+      overflow: hidden;
+    }
+    canvas {
+      background: #2c2c2c;
+      display: block;
+      margin: 0 auto;
+      border: 3px solid #fff;
+    }
+    #score {
+      font-size: 24px;
+      margin: 10px;
+    }
+    #restart {
+      margin-top: 10px;
+      padding: 10px 20px;
+      font-size: 18px;
+      display: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>😼 Dodge the Emojis!</h1>
+  <div id="score">Score: 0</div>
+  <canvas id="game" width="400" height="600"></canvas>
+  <button id="restart">Restart</button>
+  
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const restartBtn = document.getElementById("restart");
+
+    const player = {
+      x: 180, y: 540, size: 40, speed: 5,
+      emoji: '🐱'
+    };
+
+    let keys = {};
+    let score = 0;
+    let gameOver = false;
+    let speedBoost = 1;
+
+    let items = [];
+
+    function spawnItem() {
+      const type = Math.random() > 0.7 ? 'bomb' : 'pizza';
+      const emoji = type === 'bomb' ? '💣' : '🍕';
+      const x = Math.random() * (canvas.width - 30);
+      items.push({ x, y: -30, size: 30, emoji, type });
+    }
+
+    function drawPlayer() {
+      ctx.font = `${player.size}px serif`;
+      ctx.fillText(player.emoji, player.x, player.y);
+    }
+
+    function drawItems() {
+      ctx.font = `30px serif`;
+      items.forEach(item => {
+        ctx.fillText(item.emoji, item.x, item.y);
+      });
+    }
+
+    function updateItems() {
+      items.forEach(item => {
+        item.y += 2 * speedBoost;
+        // Collision
+        if (
+          item.y + item.size > player.y &&
+          item.y < player.y + player.size &&
+          item.x + item.size > player.x &&
+          item.x < player.x + player.size
+        ) {
+          if (item.type === 'bomb') {
+            endGame();
+          } else {
+            score += 10;
+            speedBoost += 0.05;
+            items.splice(items.indexOf(item), 1);
+          }
+        }
+      });
+
+      items = items.filter(item => item.y < canvas.height + 30);
+    }
+
+    function endGame() {
+      gameOver = true;
+      scoreEl.innerText = `💥 Game Over! Final Score: ${score}`;
+      restartBtn.style.display = 'inline-block';
+    }
+
+    function gameLoop() {
+      if (gameOver) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      // Move player
+      if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
+      if (keys['ArrowRight'] && player.x < canvas.width - player.size) player.x += player.speed;
+
+      drawPlayer();
+      drawItems();
+      updateItems();
+
+      scoreEl.innerText = `Score: ${score}`;
+      requestAnimationFrame(gameLoop);
+    }
+
+    // Input handling
+    window.addEventListener('keydown', (e) => keys[e.key] = true);
+    window.addEventListener('keyup', (e) => keys[e.key] = false);
+
+    // Spawning items
+    setInterval(() => {
+      if (!gameOver) spawnItem();
+    }, 700);
+
+    restartBtn.addEventListener('click', () => {
+      score = 0;
+      gameOver = false;
+      items = [];
+      player.x = 180;
+      speedBoost = 1;
+      restartBtn.style.display = 'none';
+      scoreEl.innerText = "Score: 0";
+      gameLoop();
+    });
+
+    gameLoop();
+  </script>
+</body>
+</html>
