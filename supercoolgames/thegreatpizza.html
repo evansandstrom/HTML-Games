@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>🍕 Evan's Pizza Game 🎮</title>
+  <style>
+    body {
+      margin: 0;
+      background: #1e1e1e;
+      color: white;
+      font-family: sans-serif;
+      text-align: center;
+      overflow: hidden;
+    }
+    canvas {
+      background: #2c2c2c;
+      border: 3px solid white;
+      display: block;
+      margin: 10px auto;
+    }
+    #score {
+      font-size: 24px;
+    }
+    #subtitle {
+      font-size: 16px;
+      margin-bottom: 10px;
+      color: #ccc;
+    }
+    #restart {
+      padding: 10px 20px;
+      font-size: 18px;
+      display: none;
+      cursor: pointer;
+    }
+  </style>
+</head>
+<body>
+  <h1>🍕 Evan's Pizza Game 🎮</h1>
+  <div id="subtitle">Eat the pizza and avoid the bombs to get points</div>
+  <div id="score">Score: 0</div>
+  <canvas id="game" width="400" height="600"></canvas>
+  <button id="restart">Restart</button>
+
+  <script>
+    const canvas = document.getElementById("game");
+    const ctx = canvas.getContext("2d");
+    const scoreEl = document.getElementById("score");
+    const restartBtn = document.getElementById("restart");
+
+    const emojis = ['🐱', '🧙‍♂️', '🐸', '🦖', '👾'];
+    let currentEmojiIndex = 0;
+
+    const player = {
+      x: 180, y: 540, size: 40, speed: 5,
+      get emoji() { return emojis[currentEmojiIndex]; }
+    };
+
+    let keys = {};
+    let score = 0;
+    let gameOver = false;
+    let paused = false;
+    let speedBoost = 1.5;
+    let items = [];
+    let explosions = [];
+    let shieldActive = false;
+    let turretActive = false;
+
+    function spawnItem() {
+      const rand = Math.random();
+      let type, emoji;
+      if (rand < 0.65) {
+        type = 'pizza'; emoji = '🍕';
+      } else if (rand < 0.98) {
+        type = 'bomb'; emoji = '💣';
+      } else {
+        type = Math.random() > 0.5 ? 'shield' : 'turret';
+        emoji = type === 'shield' ? '🛡️' : '🔫';
+      }
+      const x = Math.random() * (canvas.width - 30);
+      items.push({ x, y: -30, size: 30, emoji, type });
+    }
+
+    function drawPlayer() {
+      ctx.font = `${player.size}px serif`;
+      ctx.fillText(player.emoji, player.x, player.y);
+    }
+
+    function drawItems() {
+      ctx.font = `30px serif`;
+      items.forEach(item => {
+        ctx.fillText(item.emoji, item.x, item.y);
+      });
+    }
+
+    function drawExplosions() {
+      explosions.forEach((exp, i) => {
+        ctx.fillStyle = 'red';
+        ctx.beginPath();
+        ctx.arc(exp.x + 15, exp.y + 15, exp.radius, 0, Math.PI * 2);
+        ctx.fill();
+        exp.radius += 2;
+        exp.life -= 1;
+        if (exp.life <= 0) explosions.splice(i, 1);
+      });
+    }
+
+    function activatePowerUp(type) {
+      if (type === 'shield') {
+        shieldActive = true;
+        setTimeout(() => shieldActive = false, 15000);
+      } else if (type === 'turret') {
+        turretActive = true;
+        setTimeout(() => turretActive = false, 15000);
+      }
+    }
+
+    function shootTurret() {
+      items = items.filter(item => {
+        if (item.type === 'bomb' && item.y < canvas.height - 100) {
+          explosions.push({ x: item.x, y: item.y, radius: 5, life: 10 });
+          return false;
+        }
+        return true;
+      });
+    }
+
+    function updateItems() {
+      items.forEach((item, index) => {
+        item.y += 4.5 * speedBoost; // 💣 Even faster bombs!
+
+        if (
+          item.y + item.size > player.y &&
+          item.y < player.y + player.size &&
+          item.x + item.size > player.x &&
+          item.x < player.x + player.size
+        ) {
+          if (item.type === 'bomb') {
+            if (shieldActive) {
+              explosions.push({ x: item.x, y: item.y, radius: 5, life: 10 });
+              items.splice(index, 1);
+              return;
+            }
+            explosions.push({ x: item.x, y: item.y, radius: 5, life: 10 });
+            endGame();
+          } else if (item.type === 'pizza') {
+            score += 10;
+            speedBoost += 0.03;
+            items.splice(index, 1);
+          } else {
+            activatePowerUp(item.type);
+            items.splice(index, 1);
+          }
+        }
+      });
+
+      items = items.filter(item => item.y < canvas.height + 30);
+    }
+
+    function endGame() {
+      gameOver = true;
+      scoreEl.innerText = `💥 Game Over! Final Score: ${score}`;
+      restartBtn.style.display = 'inline-block';
+    }
+
+    function gameLoop() {
+      if (gameOver || paused) return;
+
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      if (keys['ArrowLeft'] && player.x > 0) player.x -= player.speed;
+      if (keys['ArrowRight'] && player.x < canvas.width - player.size) player.x += player.speed;
+
+      drawPlayer();
+      drawItems();
+      drawExplosions();
+      updateItems();
+
+      if (turretActive && Math.random() < 0.05) shootTurret();
+
+      scoreEl.innerText = `Score: ${score}`;
+      requestAnimationFrame(gameLoop);
+    }
+
+    window.addEventListener('keydown', (e) => {
+      if (e.key === 'p') {
+        paused = !paused;
+        if (!paused) gameLoop();
+      }
+      if (e.key >= '1' && e.key <= '5') {
+        currentEmojiIndex = parseInt(e.key) - 1;
+      }
+      keys[e.key] = true;
+    });
+
+    window.addEventListener('keyup', (e) => keys[e.key] = false);
+
+    setInterval(() => {
+      if (!gameOver && !paused) spawnItem();
+    }, 500);
+
+    restartBtn.addEventListener('click', () => {
+      score = 0;
+      gameOver = false;
+      items = [];
+      explosions = [];
+      player.x = 180;
+      speedBoost = 1.5;
+      shieldActive = false;
+      turretActive = false;
+      restartBtn.style.display = 'none';
+      scoreEl.innerText = "Score: 0";
+      gameLoop();
+    });
+
+    gameLoop();
+  </script>
+</body>
+</html>
