@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Bat Flight Game</title>
+  <style>
+    body {
+      margin: 0;
+      overflow: hidden;
+      background-color: #111;
+      color: white;
+      font-family: sans-serif;
+    }
+    canvas {
+      display: block;
+      background: linear-gradient(#222, #000);
+    }
+    #score {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 20px;
+    }
+  </style>
+</head>
+<body>
+  <div id="score">Score: 0</div>
+  <canvas id="gameCanvas"></canvas>
+  <script>
+    const canvas = document.getElementById("gameCanvas");
+    const ctx = canvas.getContext("2d");
+
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    let keys = {};
+    document.addEventListener("keydown", e => keys[e.code] = true);
+    document.addEventListener("keyup", e => keys[e.code] = false);
+
+    const bat = {
+      x: 100,
+      y: 300,
+      width: 50,
+      height: 40,
+      vx: 0,
+      vy: 0,
+      gravity: 0.5,
+      lift: -10,
+      speed: 4
+    };
+
+    const stars = [];
+    let score = 0;
+
+    function spawnStar() {
+      stars.push({
+        x: canvas.width + Math.random() * 200,
+        y: Math.random() * (canvas.height - 100),
+        size: 20 + Math.random() * 10,
+        collected: false
+      });
+    }
+
+    for (let i = 0; i < 5; i++) spawnStar();
+
+    function update() {
+      // Movement
+      if (keys["ArrowLeft"]) bat.x -= bat.speed;
+      if (keys["ArrowRight"]) bat.x += bat.speed;
+      if (keys["ArrowUp"]) bat.vy += bat.lift;
+
+      bat.vy += bat.gravity;
+      bat.y += bat.vy;
+
+      // Prevent going off screen
+      if (bat.y > canvas.height - bat.height) {
+        bat.y = canvas.height - bat.height;
+        bat.vy = 0;
+      }
+      if (bat.y < 0) {
+        bat.y = 0;
+        bat.vy = 0;
+      }
+      if (bat.x < 0) bat.x = 0;
+      if (bat.x > canvas.width - bat.width) bat.x = canvas.width - bat.width;
+
+      // Stars
+      for (let star of stars) {
+        star.x -= 2;
+        if (
+          !star.collected &&
+          bat.x < star.x + star.size &&
+          bat.x + bat.width > star.x &&
+          bat.y < star.y + star.size &&
+          bat.y + bat.height > star.y
+        ) {
+          star.collected = true;
+          score += 1;
+          document.getElementById("score").innerText = "Score: " + score;
+          setTimeout(spawnStar, 1000);
+        }
+      }
+
+      // Remove off-screen stars
+      for (let i = stars.length - 1; i >= 0; i--) {
+        if (stars[i].x < -stars[i].size || stars[i].collected) {
+          stars.splice(i, 1);
+        }
+      }
+    }
+
+    function drawBat(x, y) {
+      ctx.save();
+      ctx.translate(x + 25, y + 20);
+      ctx.beginPath();
+      ctx.moveTo(-25, 0);
+      ctx.lineTo(0, -20);
+      ctx.lineTo(25, 0);
+      ctx.lineTo(0, 20);
+      ctx.closePath();
+      ctx.fillStyle = "#a0f";
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function drawStar(star) {
+      ctx.save();
+      ctx.translate(star.x + star.size / 2, star.y + star.size / 2);
+      ctx.rotate(performance.now() / 300);
+      ctx.fillStyle = "gold";
+      ctx.beginPath();
+      for (let i = 0; i < 5; i++) {
+        ctx.lineTo(Math.cos((i * 2 * Math.PI) / 5) * star.size / 2,
+                   Math.sin((i * 2 * Math.PI) / 5) * star.size / 2);
+      }
+      ctx.closePath();
+      ctx.fill();
+      ctx.restore();
+    }
+
+    function draw() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+      drawBat(bat.x, bat.y);
+      for (let star of stars) drawStar(star);
+    }
+
+    function loop() {
+      update();
+      draw();
+      requestAnimationFrame(loop);
+    }
+
+    loop();
+    window.addEventListener("resize", () => {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
+    });
+  </script>
+</body>
+</html>
