@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bike Jumping Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    canvas { display: block; margin: 0 auto; background: #87CEEB; }
+  </style>
+</head>
+<body>
+  <canvas id="gameCanvas" width="800" height="400"></canvas>
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+
+    const gravity = 0.6;
+    const jumpStrength = -12;
+
+    class Bike {
+      constructor() {
+        this.width = 50;
+        this.height = 30;
+        this.x = 50;
+        this.y = canvas.height - this.height - 20;
+        this.dy = 0;
+        this.jumping = false;
+      }
+      draw() {
+        ctx.fillStyle = '#ff5733';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+        // Wheels
+        ctx.beginPath(); ctx.arc(this.x + 10, this.y + this.height, 10, 0, Math.PI * 2);
+        ctx.arc(this.x + 40, this.y + this.height, 10, 0, Math.PI * 2);
+        ctx.fillStyle = '#333'; ctx.fill();
+      }
+      update() {
+        if (this.jumping) {
+          this.dy += gravity;
+          this.y += this.dy;
+          if (this.y > canvas.height - this.height - 20) {
+            this.y = canvas.height - this.height - 20;
+            this.dy = 0;
+            this.jumping = false;
+          }
+        }
+        this.draw();
+      }
+      jump() {
+        if (!this.jumping) {
+          this.jumping = true;
+          this.dy = jumpStrength;
+        }
+      }
+    }
+
+    class Obstacle {
+      constructor() {
+        this.width = 20 + Math.random() * 30;
+        this.height = 20 + Math.random() * 40;
+        this.x = canvas.width;
+        this.y = canvas.height - this.height - 20;
+        this.speed = 6;
+      }
+      draw() {
+        ctx.fillStyle = '#228B22';
+        ctx.fillRect(this.x, this.y, this.width, this.height);
+      }
+      update() {
+        this.x -= this.speed;
+        this.draw();
+      }
+    }
+
+    const bike = new Bike();
+    let obstacles = [];
+    let frame = 0;
+    let score = 0;
+
+    function animate() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      bike.update();
+
+      if (frame % 90 === 0) {
+        obstacles.push(new Obstacle());
+      }
+      obstacles.forEach((obs, i) => {
+        obs.update();
+        // collision
+        if (
+          bike.x < obs.x + obs.width &&
+          bike.x + bike.width > obs.x &&
+          bike.y < obs.y + obs.height &&
+          bike.y + bike.height > obs.y
+        ) {
+          alert('Game Over! Score: ' + score);
+          obstacles = [];
+          score = 0;
+          frame = 0;
+        }
+        if (obs.x + obs.width < 0) {
+          obstacles.splice(i, 1);
+          score++;
+        }
+      });
+
+      // ground
+      ctx.fillStyle = '#654321';
+      ctx.fillRect(0, canvas.height - 20, canvas.width, 20);
+
+      // score
+      ctx.fillStyle = '#000';
+      ctx.font = '20px Arial';
+      ctx.fillText('Score: ' + score, 10, 30);
+
+      frame++;
+      requestAnimationFrame(animate);
+    }
+
+    window.addEventListener('keydown', e => {
+      if (e.code === 'Space') {
+        bike.jump();
+      }
+    });
+
+    animate();
+  </script>
+</body>
+</html>
