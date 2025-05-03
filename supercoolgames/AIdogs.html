@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>BARKLIGHT: Dogs of Destiny</title>
+  <style>
+    body { margin: 0; background: #cceeff; overflow: hidden; }
+    canvas { display: block; }
+  </style>
+</head>
+<body>
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const GRAVITY = 0.6;
+const JUMP = -12;
+
+let keys = {};
+document.addEventListener("keydown", e => keys[e.code] = true);
+document.addEventListener("keyup", e => keys[e.code] = false);
+
+class Dog {
+  constructor() {
+    this.x = 100;
+    this.y = canvas.height - 100;
+    this.vx = 3;
+    this.vy = 0;
+    this.onGround = false;
+    this.color = "brown";
+  }
+
+  update() {
+    this.vy += GRAVITY;
+    this.y += this.vy;
+    this.x += this.vx;
+
+    // Ground collision
+    if (this.y > canvas.height - 50) {
+      this.y = canvas.height - 50;
+      this.vy = 0;
+      this.onGround = true;
+    } else {
+      this.onGround = false;
+    }
+
+    if (keys["Space"] && this.onGround) {
+      this.vy = JUMP;
+    }
+  }
+
+  draw() {
+    ctx.fillStyle = this.color;
+    ctx.fillRect(this.x - 25, this.y - 25, 50, 50); // body
+    ctx.beginPath(); // tail
+    ctx.moveTo(this.x + 25, this.y - 10);
+    ctx.lineTo(this.x + 40, this.y - 20);
+    ctx.strokeStyle = "black";
+    ctx.stroke();
+  }
+}
+
+const dog = new Dog();
+
+function gameLoop() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+  // Ground
+  ctx.fillStyle = "#88cc88";
+  ctx.fillRect(0, canvas.height - 40, canvas.width, 40);
+
+  dog.update();
+  dog.draw();
+
+  requestAnimationFrame(gameLoop);
+}
+gameLoop();
+</script>
+</body>
+</html>
