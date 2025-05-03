@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Motorcycle Side-Scrolling Game</title>
+    <style>
+        canvas {
+            border: 1px solid black;
+            display: block;
+            margin: 0 auto;
+            background-color: #87CEEB;
+        }
+        body {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100vh;
+            margin: 0;
+            background-color: #f0f0f0;
+        }
+    </style>
+</head>
+<body>
+    <canvas id="gameCanvas" width="800" height="400"></canvas>
+    <script>
+        const canvas = document.getElementById('gameCanvas');
+        const ctx = canvas.getContext('2d');
+
+        // Game objects
+        const bike = {
+            x: 100,
+            y: 300,
+            width: 40,
+            height: 20,
+            speed: 0,
+            maxSpeed: 5,
+            acceleration: 0.2,
+            rotation: 0,
+            rotationSpeed: 0.05,
+            velocityY: 0,
+            onGround: true
+        };
+
+        // Terrain generation
+        const terrain = [];
+        const terrainHeight = 300;
+        let terrainOffset = 0;
+        const terrainSegmentWidth = 20;
+
+        // Generate initial terrain
+        function generateTerrain() {
+            terrain.length = 0; // Clear existing terrain
+            for (let x = 0; x < canvas.width * 3; x += terrainSegmentWidth) {
+                const lastHeight = terrain.length > 0 ? terrain[terrain.length - 1].height : terrainHeight;
+                const height = lastHeight + (Math.random() - 0.5) * 30;
+                terrain.push({ x, height: Math.max(200, Math.min(350, height)) });
+            }
+        }
+
+        // Physics constants
+        const gravity = 0.5;
+        const friction = 0.95;
+        const jumpForce = -10;
+
+        // Keyboard controls
+        const keys = {
+            ArrowLeft: false,
+            ArrowRight: false,
+            ArrowUp: false,
+            ArrowDown: false
+        };
+
+        document.addEventListener('keydown', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = true;
+                if (e.key === 'ArrowUp' && bike.onGround) {
+                    bike.velocityY = jumpForce;
+                    bike.onGround = false;
+                }
+                e.preventDefault();
+            }
+        });
+
+        document.addEventListener('keyup', (e) => {
+            if (e.key in keys) {
+                keys[e.key] = false;
+                e.preventDefault();
+            }
+        });
+
+        // Get terrain height at position
+        function getTerrainHeightAt(x) {
+            const adjustedX = x + terrainOffset;
+            const index = Math.floor(adjustedX / terrainSegmentWidth);
+            if (index < 0 || index >= terrain.length - 1) return terrainHeight;
+            
+            const t1 = terrain[index];
+            const t2 = terrain[index + 1];
+            const lerp = (adjustedX % terrainSegmentWidth) / terrainSegmentWidth;
+            return t1.height + (t2.height - t1.height) * lerp;
+        }
+
+        // Update game state
+        function update() {
+            // Handle movement
+            if (keys.ArrowRight) {
+                bike.speed = Math.min(bike.speed + bike.acceleration, bike.maxSpeed);
+            } else if (keys.ArrowLeft) {
+                bike.speed = Math.max(bike.speed - bike.acceleration, -bike.maxSpeed);
+            } else {
+                bike.speed *= friction;
+            }
+
+            // Handle rotation
+            if (keys.ArrowDown && bike.onGround) {
+                bike.rotation += bike.rotationSpeed;
+            } else if (bike.onGround) {
+                bike.rotation *= 0.9; // Smoothly return to flat
+            }
+            bike.rotation = Math.max(-Math.PI / 4, Math.min(Math.PI / 4, bike.rotation));
+
+            // Update position
+            terrainOffset += bike.speed;
+            bike.x = 100; // Keep bike centered horizontally
+
+            // Apply gravity
+            bike.velocityY += gravity;
+            bike.y += bike.velocityY;
+
+            // Check ground collision
+            const groundHeight = getTerrainHeightAt(bike.x);
+            if (bike.y + bike.height >= groundHeight) {
+                bike.y = groundHeight - bike.height;
+                bike.velocityY = 0;
+                bike.onGround = true;
+            } else {
+                bike.onGround = false;
+            }
+
+            // Generate new terrain if needed
+            if (terrainOffset > terrainSegmentWidth) {
+                terrain.shift();
+                const lastHeight = terrain[terrain.length - 1].height;
+                const newHeight = lastHeight + (Math.random() - 0.5) * 30;
+                terrain.push({
+                    x: terrain[terrain.length - 1].x + terrainSegmentWidth,
+                    height: Math.max(200, Math.min(350, newHeight))
+                });
+                terrainOffset -= terrainSegmentWidth;
+            } else if (terrainOffset < -terrainSegmentWidth) {
+                terrain.shift();
+                const lastHeight = terrain[terrain.length - 1].height;
+                const newHeight = lastHeight + (Math.random() - 0.5) * 30;
+                terrain.push({
+                    x: terrain[terrain.length - 1].x + terrainSegmentWidth,
+                    height: Math.max(200, Math.min(350, newHeight))
+                });
+                terrainOffset += terrainSegmentWidth;
+            }
+        }
+
+        // Draw game
+        function draw() {
+            // Clear canvas
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+            // Draw terrain
+            ctx.fillStyle = '#228B22';
+            ctx.beginPath();
+            ctx.moveTo(0, canvas.height);
+            for (let i = 0; i < terrain.length; i++) {
+                const x = terrain[i].x - terrainOffset;
+                ctx.lineTo(x, terrain[i].height);
+            }
+            ctx.lineTo(canvas.width, canvas.height);
+            ctx.fill();
+
+            // Draw bike
+            ctx.save();
+            ctx.translate(bike.x, bike.y);
+            ctx.rotate(bike.rotation);
+            ctx.fillStyle = '#FF0000';
+            ctx.fillRect(-bike.width / 2, -bike.height, bike.width, bike.height);
+            // Wheels
+            ctx.fillStyle = '#000000';
+            ctx.beginPath();
+            ctx.arc(-bike.width / 2 + 5, 0, 5, 0, Math.PI * 2);
+            ctx.arc(bike.width / 2 - 5, 0, 5, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.restore();
+        }
+
+        // Game loop
+        function gameLoop() {
+            update();
+            draw();
+            requestAnimationFrame(gameLoop);
+        }
+
+        // Initialize and start game
+        generateTerrain();
+        gameLoop();
+    </script>
+</body>
+</html>
