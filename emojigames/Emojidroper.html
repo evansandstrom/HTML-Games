@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emoji Surf Catch</title>
+  <style>
+    body {
+      font-family: 'Segoe UI Emoji', sans-serif;
+      background-color: #f0f8ff;
+      overflow: hidden;
+      margin: 0;
+      padding: 0;
+    }
+    canvas {
+      display: block;
+      margin: 0 auto;
+      background-color: #cceeff;
+      border: 2px solid #0077b6;
+    }
+    h1, button, #score, #timer {
+      text-align: center;
+      margin-top: 1rem;
+    }
+    .btn {
+      font-size: 1.2rem;
+      padding: 0.5rem 1rem;
+      margin: 1rem auto;
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      background-color: #4CAF50;
+      color: white;
+      display: block;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏄‍♂️ Emoji Surf Catch 🌊</h1>
+  <button class="btn" onclick="startGame()">Start Game</button>
+  <div id="score">Score: 0</div>
+  <div id="timer">Time Left: 30s</div>
+  <canvas id="gameCanvas" width="400" height="600"></canvas>
+
+  <script>
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const scoreDiv = document.getElementById('score');
+    const timerDiv = document.getElementById('timer');
+
+    let basket = { x: 160, width: 80, height: 20 };
+    let fallingEmojis = [];
+    let score = 0;
+    let animation;
+    let timeLeft = 30;
+    let timerInterval;
+    let dropInterval;
+
+    const goodEmojis = ['🌊', '🦀', '🪨', '🏄', '🐬', '🌴'];
+    const badEmojis = ['🦈', '💩', '⚡'];
+
+    function drawBasket() {
+      ctx.font = '24px Segoe UI Emoji';
+      ctx.fillText('🧺', basket.x, canvas.height - 30);
+    }
+
+    function drawEmojis() {
+      fallingEmojis.forEach(e => {
+        ctx.font = '24px Segoe UI Emoji';
+        ctx.fillText(e.emoji, e.x, e.y);
+      });
+    }
+
+    function updateGame() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      drawBasket();
+      drawEmojis();
+      moveEmojis();
+      animation = requestAnimationFrame(updateGame);
+    }
+
+    function moveEmojis() {
+      for (let i = fallingEmojis.length - 1; i >= 0; i--) {
+        fallingEmojis[i].y += 3;
+        if (fallingEmojis[i].y > canvas.height - 50 &&
+            fallingEmojis[i].x > basket.x &&
+            fallingEmojis[i].x < basket.x + basket.width) {
+          if (fallingEmojis[i].type === 'good') {
+            score++;
+          } else {
+            score--;
+          }
+          fallingEmojis.splice(i, 1);
+          scoreDiv.textContent = 'Score: ' + score;
+        } else if (fallingEmojis[i].y > canvas.height) {
+          fallingEmojis.splice(i, 1);
+        }
+      }
+    }
+
+    function dropEmoji() {
+      const isBad = Math.random() < 0.3;
+      const emojiList = isBad ? badEmojis : goodEmojis;
+      const emoji = emojiList[Math.floor(Math.random() * emojiList.length)];
+      const x = Math.random() * (canvas.width - 24);
+      fallingEmojis.push({ emoji, x, y: 0, type: isBad ? 'bad' : 'good' });
+    }
+
+    function startGame() {
+      score = 0;
+      timeLeft = 30;
+      fallingEmojis = [];
+      scoreDiv.textContent = 'Score: 0';
+      timerDiv.textContent = 'Time Left: 30s';
+      clearInterval(dropInterval);
+      clearInterval(timerInterval);
+      cancelAnimationFrame(animation);
+      dropInterval = setInterval(dropEmoji, 800);
+      timerInterval = setInterval(() => {
+        timeLeft--;
+        timerDiv.textContent = 'Time Left: ' + timeLeft + 's';
+        if (timeLeft <= 0) {
+          clearInterval(dropInterval);
+          clearInterval(timerInterval);
+          cancelAnimationFrame(animation);
+          alert('Time's up! Final Score: ' + score);
+        }
+      }, 1000);
+      updateGame();
+    }
+
+    document.addEventListener('keydown', e => {
+      if (e.key === 'ArrowLeft') basket.x -= 20;
+      if (e.key === 'ArrowRight') basket.x += 20;
+      if (basket.x < 0) basket.x = 0;
+      if (basket.x > canvas.width - basket.width) basket.x = canvas.width - basket.width;
+    });
+  </script>
+</body>
+</html>
