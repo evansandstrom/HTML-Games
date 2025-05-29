@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Emoji Surf Adventure</title>
+  <style>
+    body {
+      font-family: 'Segoe UI Emoji', sans-serif;
+      background-color: #f0f8ff;
+      text-align: center;
+      padding: 2rem;
+    }
+    h1 {
+      font-size: 3rem;
+    }
+    #game {
+      font-size: 2rem;
+      margin-top: 2rem;
+    }
+    #score {
+      margin-top: 1rem;
+      font-size: 1.5rem;
+    }
+    .btn {
+      font-size: 1.5rem;
+      padding: 0.5rem 1rem;
+      margin: 1rem;
+      cursor: pointer;
+      border: none;
+      border-radius: 10px;
+      background-color: #4CAF50;
+      color: white;
+      transition: background-color 0.3s ease;
+    }
+    .btn:hover {
+      background-color: #45a049;
+    }
+  </style>
+</head>
+<body>
+  <h1>🏄‍♂️ Emoji Surf Adventure 🌊</h1>
+  <p>Click the 🏄 emoji as fast as you can before it changes!</p>
+  <div id="game">⬜</div>
+  <button class="btn" onclick="startGame()">Start Game</button>
+  <div id="score"></div>
+
+  <script>
+    const gameDiv = document.getElementById('game');
+    const scoreDiv = document.getElementById('score');
+    let score = 0;
+    let interval;
+    let currentEmoji = '';
+
+    function startGame() {
+      score = 0;
+      scoreDiv.textContent = 'Score: 0';
+      nextEmoji();
+      clearInterval(interval);
+      interval = setInterval(nextEmoji, 1000);
+    }
+
+    function nextEmoji() {
+      const emojis = ['🌊', '🦀', '🪨', '🏄', '🐬', '🌴'];
+      currentEmoji = emojis[Math.floor(Math.random() * emojis.length)];
+      gameDiv.textContent = currentEmoji;
+    }
+
+    gameDiv.addEventListener('click', () => {
+      if (currentEmoji === '🏄') {
+        score++;
+        scoreDiv.textContent = `Score: ${score}`;
+      } else {
+        score--;
+        scoreDiv.textContent = `Score: ${score}`;
+      }
+    });
+  </script>
+</body>
+</html>
