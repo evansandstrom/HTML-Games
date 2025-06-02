@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cookie Clicker Lite</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      text-align: center;
+      background-color: #fff7e6;
+      margin: 0;
+      padding: 40px;
+    }
+    #cookie {
+      width: 200px;
+      height: 200px;
+      background-image: url('https://upload.wikimedia.org/wikipedia/commons/7/74/Chocolate_Chip_Cookie_-_kimberlykv.jpg');
+      background-size: cover;
+      background-position: center;
+      border-radius: 50%;
+      cursor: pointer;
+      margin: 20px auto;
+      box-shadow: 0 8px 16px rgba(0,0,0,0.2);
+      transition: transform 0.1s ease-in-out;
+    }
+    #cookie:active {
+      transform: scale(0.95);
+    }
+    #counter {
+      font-size: 2em;
+      color: #5c4033;
+      margin-bottom: 20px;
+    }
+    .upgrade {
+      margin-top: 20px;
+    }
+    button {
+      padding: 12px 24px;
+      font-size: 1em;
+      margin: 10px;
+      border: none;
+      border-radius: 8px;
+      background-color: #d2691e;
+      color: white;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    button:hover {
+      background-color: #b55b1f;
+    }
+  </style>
+</head>
+<body>
+  <h1>Cookie Clicker Lite</h1>
+  <div id="counter">Cookies: 0</div>
+  <div id="cookie"></div>
+  <div class="upgrade">
+    <button id="buyCursorBtn">Buy Cursor (10 cookies)</button>
+    <div id="cursorCount">Cursors: 0</div>
+  </div>
+
+  <script>
+    let cookies = 0;
+    let cursors = 0;
+
+    const counterEl = document.getElementById('counter');
+    const cookieEl = document.getElementById('cookie');
+    const cursorCountEl = document.getElementById('cursorCount');
+    const buyCursorBtn = document.getElementById('buyCursorBtn');
+
+    function updateDisplay() {
+      counterEl.textContent = `Cookies: ${cookies}`;
+      cursorCountEl.textContent = `Cursors: ${cursors}`;
+    }
+
+    cookieEl.addEventListener('click', () => {
+      cookies += 1;
+      updateDisplay();
+    });
+
+    buyCursorBtn.addEventListener('click', () => {
+      if (cookies >= 10) {
+        cookies -= 10;
+        cursors += 1;
+        updateDisplay();
+      }
+    });
+
+    // Passive cookie generation from cursors
+    setInterval(() => {
+      cookies += cursors;
+      updateDisplay();
+    }, 1000);
+
+    // Initial display
+    updateDisplay();
+  </script>
+</body>
+</html>
