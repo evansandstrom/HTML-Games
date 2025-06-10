@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>City Driving Game</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body, html { width: 100%; height: 100%; overflow: hidden; background: #87ceeb; }
+    canvas { display: block; margin: 0 auto; background: #444; }
+  </style>
+</head>
+<body>
+<canvas id="gameCanvas" width="800" height="600"></canvas>
+<script>
+  const canvas = document.getElementById('gameCanvas');
+  const ctx = canvas.getContext('2d');
+
+  const keys = {};
+  const car = {
+    x: 400,
+    y: 300,
+    width: 40,
+    height: 20,
+    angle: 0,
+    speed: 0,
+    maxSpeed: 4,
+    acceleration: 0.2,
+    friction: 0.05,
+    turnSpeed: 3
+  };
+
+  const cityMap = [];
+  for (let i = 0; i < 200; i++) {
+    cityMap.push({ x: Math.random() * 2000 - 1000, y: Math.random() * 2000 - 1000 });
+  }
+
+  document.addEventListener('keydown', e => keys[e.key] = true);
+  document.addEventListener('keyup', e => keys[e.key] = false);
+
+  function update() {
+    // Controls
+    if (keys['ArrowUp']) car.speed += car.acceleration;
+    if (keys['ArrowDown']) car.speed -= car.acceleration;
+    if (keys['ArrowLeft']) car.angle -= car.turnSpeed * (car.speed !== 0 ? Math.sign(car.speed) : 0);
+    if (keys['ArrowRight']) car.angle += car.turnSpeed * (car.speed !== 0 ? Math.sign(car.speed) : 0);
+
+    // Apply friction and cap speed
+    car.speed *= (1 - car.friction);
+    car.speed = Math.max(-car.maxSpeed, Math.min(car.maxSpeed, car.speed));
+
+    // Move
+    car.x += Math.cos(car.angle * Math.PI / 180) * car.speed * 5;
+    car.y += Math.sin(car.angle * Math.PI / 180) * car.speed * 5;
+  }
+
+  function drawCar() {
+    ctx.save();
+    ctx.translate(canvas.width / 2, canvas.height / 2);
+    ctx.rotate(car.angle * Math.PI / 180);
+    ctx.fillStyle = 'red';
+    ctx.fillRect(-car.width / 2, -car.height / 2, car.width, car.height);
+    ctx.restore();
+  }
+
+  function drawCity() {
+    ctx.save();
+    ctx.translate(canvas.width / 2 - car.x, canvas.height / 2 - car.y);
+    ctx.fillStyle = '#888';
+    for (const building of cityMap) {
+      ctx.fillRect(building.x, building.y, 60, 60);
+    }
+    ctx.restore();
+  }
+
+  function loop() {
+    update();
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
+    drawCity();
+    drawCar();
+    requestAnimationFrame(loop);
+  }
+
+  loop();
+</script>
+</body>
+</html>
