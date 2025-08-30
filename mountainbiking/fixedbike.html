@@ -1,0 +1,140 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Flow Trail — Mountain Biking Canvas Game</title>
+  <style>
+    html, body { height: 100%; margin: 0; background: #0b1020; overflow: hidden; }
+    canvas { display: block; width: 100vw; height: 100vh; }
+  </style>
+</head>
+<body>
+  <canvas id="game"></canvas>
+
+  <script>
+  (()=>{
+
+    const canvas = document.getElementById('game');
+    const ctx = canvas.getContext('2d');
+    let DPR = Math.max(1, Math.min(window.devicePixelRatio||1, 2));
+
+    function resize(){
+      canvas.width = Math.floor(innerWidth * DPR);
+      canvas.height = Math.floor(innerHeight * DPR);
+    }
+    addEventListener('resize', resize); resize();
+
+    // Terrain function
+    function terrain(x){
+      return innerHeight*0.7 + Math.sin(x*0.002)*60 + Math.sin(x*0.005)*40;
+    }
+
+    // Bike state
+    const bike = {
+      x: 200,
+      y: 0,
+      vx: 150,
+      vy: 0,
+      angle: 0,
+      onGround: true
+    };
+
+    bike.y = terrain(bike.x);
+
+    // Input
+    const keys = new Set();
+    addEventListener('keydown', e=>keys.add(e.key.toLowerCase()));
+    addEventListener('keyup', e=>keys.delete(e.key.toLowerCase()));
+
+    let then = performance.now();
+    let scroll = 0;
+    const gravity = 800;
+
+    function physics(dt){
+      // Forward/backward control
+      if(keys.has('a')) bike.vx -= 50*dt;
+      if(keys.has('d')) bike.vx += 50*dt;
+      bike.vx = Math.max(50, Math.min(300, bike.vx));
+
+      // Horizontal movement
+      bike.x += bike.vx*dt;
+
+      // Get ground position and slope
+      const groundY = terrain(bike.x);
+      const slope = (terrain(bike.x+2)-terrain(bike.x-2))/4;
+      const slopeAngle = Math.atan2(slope, 1);
+
+      if(bike.onGround){
+        bike.y = groundY;
+        bike.angle = slopeAngle;
+        if(keys.has('w') || keys.has(' ')){
+          bike.vy = -400; // jump
+          bike.onGround = false;
+        }
+      } else {
+        bike.vy += gravity*dt;
+        bike.y += bike.vy*dt;
+        bike.angle += (0 - bike.angle)*0.05; // slowly level out
+        // Land check
+        if(bike.y >= groundY){
+          bike.y = groundY;
+          bike.vy = 0;
+          bike.onGround = true;
+          bike.angle = slopeAngle;
+        }
+      }
+
+      scroll = bike.x - 200;
+    }
+
+    function draw(){
+      ctx.setTransform(1,0,0,1,0,0);
+      ctx.clearRect(0,0,canvas.width,canvas.height);
+
+      // Sky
+      ctx.fillStyle = "#66aaff";
+      ctx.fillRect(0,0,canvas.width,canvas.height);
+
+      // Ground
+      ctx.beginPath();
+      ctx.moveTo(-200, canvas.height);
+      for(let x=-200;x<canvas.width+200;x+=10){
+        ctx.lineTo(x, terrain(x+scroll));
+      }
+      ctx.lineTo(canvas.width+200, canvas.height);
+      ctx.closePath();
+      ctx.fillStyle = "#225522";
+      ctx.fill();
+
+      // Bike
+      ctx.save();
+      ctx.translate(bike.x-scroll, bike.y);
+      ctx.rotate(bike.angle);
+
+      ctx.strokeStyle = "#000";
+      ctx.lineWidth = 4;
+      ctx.beginPath();
+      ctx.moveTo(-15,0); ctx.lineTo(15,0);
+      ctx.stroke();
+
+      ctx.fillStyle = "#333";
+      ctx.beginPath(); ctx.arc(-15,0,10,0,Math.PI*2); ctx.fill();
+      ctx.beginPath(); ctx.arc(15,0,10,0,Math.PI*2); ctx.fill();
+
+      ctx.restore();
+    }
+
+    function step(now){
+      const dt = Math.min(0.033,(now-then)/1000);
+      then = now;
+      physics(dt);
+      draw();
+      requestAnimationFrame(step);
+    }
+    requestAnimationFrame(step);
+
+  })();
+  </script>
+</body>
+</html>
