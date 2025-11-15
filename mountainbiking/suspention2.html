@@ -1,0 +1,309 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>MTB Suspension — Pivot-accurate Kinematics</title>
+  <style>
+    :root{ --bg:#0b1220; --card:#0f1724; --muted:#98a6b3; --accent:#7dd3fc; }
+    html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,Arial;background:linear-gradient(180deg,#071026,#061022);color:#e6eef8}
+    .wrap{max-width:1200px;margin:18px auto;padding:16px;display:grid;grid-template-columns:340px 1fr;gap:18px}
+    .panel{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));padding:14px;border-radius:12px;box-shadow:0 8px 24px rgba(2,6,23,0.6)}
+    h1{margin:0 0 6px;font-size:18px}
+    label{font-size:13px;color:var(--muted);display:block;margin-bottom:6px}
+    select,input[type=range],input[type=number],textarea{width:100%}
+    .small{font-size:12px;color:var(--muted)}
+    .controls{display:flex;flex-direction:column;gap:12px}
+    .btn{background:var(--accent);border:none;padding:8px 10px;border-radius:8px;color:#07203a;cursor:pointer}
+    canvas{width:100%;height:620px;border-radius:10px;background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent)}
+    .status{display:flex;gap:10px;flex-wrap:wrap;margin-top:10px}
+    .stat{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;min-width:120px}
+    .grid{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+    .mono{font-family:monospace;font-size:12px}
+  </style>
+</head>
+<body>
+  <div class="wrap">
+    <div class="panel">
+      <h1>MTB Suspension — Pivot-accurate Kinematics</h1>
+      <div class="small">Enter exact pivot coordinates (in mm) for a single-pivot frame. The simulator will compute shock stroke from true rigid-body rotation of the rear triangle about the main pivot. This gives realistic leverage curves for that geometry.</div>
+
+      <div style="height:10px"></div>
+
+      <div class="controls">
+        <label>Mode</label>
+        <select id="mode">
+          <option value="single_pivot_exact">Single-pivot (exact)</option>
+          <option value="full_analytic">Full (analytic approx)</option>
+        </select>
+
+        <label>Wheel bump (mm)</label>
+        <input id="bumpSlider" type="range" min="0" max="140" value="0" />
+        <div class="small">Axle vertical displacement: <span id="bumpVal">0</span> mm</div>
+
+        <div class="grid">
+          <div>
+            <label>Main pivot (frame) X,Y</label>
+            <input id="mainPivotX" type="number" value="460" />
+            <input id="mainPivotY" type="number" value="260" />
+          </div>
+          <div>
+            <label>Axle (reference) X,Y</label>
+            <input id="axleX" type="number" value="300" />
+            <input id="axleY" type="number" value="360" />
+          </div>
+        </div>
+
+        <div class="grid">
+          <div>
+            <label>Shock top (frame) X,Y</label>
+            <input id="shockTopX" type="number" value="370" />
+            <input id="shockTopY" type="number" value="210" />
+          </div>
+          <div>
+            <label>Shock lower offset on rear triangle (rel. to axle) X,Y</label>
+            <input id="shockOffX" type="number" value="-40" />
+            <input id="shockOffY" type="number" value="-40" />
+          </div>
+        </div>
+
+        <div class="small">Presets</div>
+        <div style="display:flex;gap:8px">
+          <button class="btn" id="presetTrail">Example Trail Frame</button>
+          <button class="btn" id="presetEnduro">Example Enduro Frame</button>
+        </div>
+
+        <div class="small">Outputs</div>
+        <div class="status">
+          <div class="stat"><div class="small">Computed axle travel</div><strong id="axleOut">0 mm</strong></div>
+          <div class="stat"><div class="small">Shock stroke</div><strong id="shockOut">0 mm</strong></div>
+          <div class="stat"><div class="small">Leverage (axle/shock)</div><strong id="leverOut">—</strong></div>
+        </div>
+
+        <div class="small">Tip: change pivot coordinates to match your frame CAD drawing (units mm). The single-pivot model performs an exact rigid rotation of the rear triangle to compute shock length.</div>
+      </div>
+    </div>
+
+    <div class="panel">
+      <canvas id="simCanvas" width="900" height="620"></canvas>
+      <div style="height:8px"></div>
+      <div class="small mono">Note: coordinate system used in inputs maps to the drawing; (0,0) is top-left. Increase canvas size if you use large coordinates.</div>
+    </div>
+  </div>
+
+<script>
+// -------------------------
+// Utility
+// -------------------------
+const $ = id => document.getElementById(id);
+const modeEl = $('mode');
+const bumpSlider = $('bumpSlider');
+const bumpVal = $('bumpVal');
+const mainPivotX = $('mainPivotX'); const mainPivotY = $('mainPivotY');
+const axleX = $('axleX'); const axleY = $('axleY');
+const shockTopX = $('shockTopX'); const shockTopY = $('shockTopY');
+const shockOffX = $('shockOffX'); const shockOffY = $('shockOffY');
+const axleOut = $('axleOut'); const shockOut = $('shockOut'); const leverOut = $('leverOut');
+const presetTrail = $('presetTrail'); const presetEnduro = $('presetEnduro');
+
+const canvas = $('simCanvas'); const ctx = canvas.getContext('2d');
+let sim = { time:0, animVel:0 };
+
+function clamp(v,a,b){ return Math.max(a,Math.min(b,v)); }
+function drawCircle(x,y,r,fill=true){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); if(fill) ctx.fill(); else ctx.stroke(); }
+
+// -------------------------
+// Geometry helpers
+// -------------------------
+function rotatePoint(px,py, cx,cy, theta){
+  // rotate point (px,py) about center (cx,cy) by theta (radians)
+  const dx = px - cx; const dy = py - cy;
+  const cos = Math.cos(theta); const sin = Math.sin(theta);
+  return { x: cx + dx*cos - dy*sin, y: cy + dx*sin + dy*cos };
+}
+
+// For single-pivot exact kinematics:
+// The rear triangle is treated as a rigid body defined by three reference points: the main pivot (fixed), the axle (initial position), and a shock-lower attachment defined relative to the axle by a vector. Rotating the triangle about the main pivot by angle theta moves the axle and shock-lower; shock length is distance between shock-top (fixed on frame) and rotated shock-lower.
+
+function kinematics_single_pivot_exact(params, targetAxleDy){
+  // params: mainPivot {x,y}, axleRef {x,y}, shockTop {x,y}, shockOff {x,y}
+  // targetAxleDy: desired vertical axle displacement upward (mm)
+  // We'll find rotation theta such that rotated axle y = axleRef.y - targetAxleDy
+
+  const P = params.mainPivot; const A0 = params.axleRef; const STop = params.shockTop; const SOff = params.shockOff;
+  // baseline axle Y
+  const targetY = A0.y - targetAxleDy;
+
+  // search theta in reasonable range [-30deg, 30deg]
+  const minT = -0.6; const maxT = 0.6;
+  let lo = minT, hi = maxT;
+  // binary search on theta to match axle y
+  for(let iter=0; iter<40; iter++){
+    const mid = (lo+hi)/2;
+    const Arot = rotatePoint(A0.x,A0.y, P.x,P.y, mid);
+    if(Arot.y > targetY) {
+      // rotated axle is lower than target (y bigger) => need rotate more negative? depends
+      // evaluate sign by sampling slightly
+      // We'll check function f(theta) = Arot.y - targetY; we want zero
+      const f = Arot.y - targetY;
+      // evaluate at lo
+      const Alo = rotatePoint(A0.x,A0.y, P.x,P.y, lo);
+      const flo = Alo.y - targetY;
+      // if flo and f have same sign, move lo; else move hi
+      if(flo * f <= 0) { hi = mid; } else { lo = mid; }
+    } else {
+      const f = Arot.y - targetY;
+      const Alo = rotatePoint(A0.x,A0.y, P.x,P.y, lo);
+      const flo = Alo.y - targetY;
+      if(flo * f <= 0) { hi = mid; } else { lo = mid; }
+    }
+  }
+  const theta = (lo+hi)/2;
+  const Arot = rotatePoint(A0.x,A0.y, P.x,P.y, theta);
+  const Srot = rotatePoint(A0.x + SOff.x, A0.y + SOff.y, P.x, P.y, theta);
+  const shockLen = Math.hypot(Srot.x - STop.x, Srot.y - STop.y);
+  const axleTravel = A0.y - Arot.y; // positive when axle moved up
+  return { theta, axleY: Arot.y, axleTravel, shockLen, shockLower: Srot };
+}
+
+// analytic fallback used previously
+function kinematics_analytic(mode, wheelDisp){
+  const w = clamp(wheelDisp, 0, 140);
+  if(mode === 'full_analytic'){
+    const a = 0.36; const b = 0.0009*(140/140);
+    let shock = a*w + b*w*w; if(shock>52) shock=52;
+    const leverage = (shock>0? (w/shock) : Infinity);
+    return { axle: w, shock: shock, leverage };
+  }
+  return { axle: w, shock:0, leverage: Infinity };
+}
+
+// -------------------------
+// Drawing
+// -------------------------
+function drawScene(){
+  const W = canvas.width; const H = canvas.height;
+  ctx.clearRect(0,0,W,H);
+  ctx.fillStyle = '#071428'; ctx.fillRect(0, H-44, W, 44);
+
+  // read params from UI
+  const mode = modeEl.value;
+  const mainP = { x: Number(mainPivotX.value), y: Number(mainPivotY.value) };
+  const A0 = { x: Number(axleX.value), y: Number(axleY.value) };
+  const STop = { x: Number(shockTopX.value), y: Number(shockTopY.value) };
+  const SOff = { x: Number(shockOffX.value), y: Number(shockOffY.value) };
+  const bump = Number(bumpSlider.value);
+
+  // choose scale & offset to fit params in canvas. We'll compute bounding box of key points and add padding.
+  const pts = [ mainP, A0, STop, { x: A0.x + SOff.x, y: A0.y + SOff.y } ];
+  const xs = pts.map(p=>p.x); const ys = pts.map(p=>p.y);
+  const minX = Math.min(...xs)-120, maxX = Math.max(...xs)+120;
+  const minY = Math.min(...ys)-200, maxY = Math.max(...ys)+120;
+
+  const pad = 40;
+  const scaleX = (W - pad*2) / (maxX - minX);
+  const scaleY = (H - pad*2) / (maxY - minY);
+  const scale = Math.min(scaleX, scaleY);
+  const offsetX = pad - minX*scale;
+  const offsetY = pad - minY*scale;
+
+  function sx(x){ return x*scale + offsetX; }
+  function sy(y){ return y*scale + offsetY; }
+
+  // draw frame coordinate grid for reference
+  ctx.strokeStyle = 'rgba(200,220,255,0.03)'; ctx.lineWidth = 1;
+  for(let gx = Math.floor(minX/50)*50; gx<=maxX; gx+=50){ ctx.beginPath(); ctx.moveTo(sx(gx), sy(minY)); ctx.lineTo(sx(gx), sy(maxY)); ctx.stroke(); }
+  for(let gy = Math.floor(minY/50)*50; gy<=maxY; gy+=50){ ctx.beginPath(); ctx.moveTo(sx(minX), sy(gy)); ctx.lineTo(sx(maxX), sy(gy)); ctx.stroke(); }
+
+  // draw fixed points
+  ctx.fillStyle = '#93c5fd'; drawCircle(sx(mainP.x), sy(mainP.y), 6);
+  ctx.fillStyle = '#fef3c7'; drawCircle(sx(STop.x), sy(STop.y), 5);
+  ctx.fillStyle = '#cfeeff'; drawCircle(sx(A0.x), sy(A0.y), 5);
+
+  // compute kinematics
+  let kin;
+  if(mode === 'single_pivot_exact'){
+    kin = kinematics_single_pivot_exact({ mainPivot: mainP, axleRef: A0, shockTop: STop, shockOff: SOff }, bump);
+    // draw rear triangle rotated
+    ctx.strokeStyle = '#7ee787'; ctx.lineWidth = 8;
+    // main pivot to rotated axle
+    ctx.beginPath(); ctx.moveTo(sx(mainP.x), sy(mainP.y)); ctx.lineTo(sx(kin.axleY === undefined ? A0.x : kin.axleY, 0), sy(mainP.y)); // dummy, will draw triangle below
+    ctx.stroke();
+
+    // draw rotated axle
+    ctx.fillStyle = '#ffd6a5'; drawCircle(sx(kin.axleY === undefined ? A0.x : kin.axleY, 0), sy(kin.axleY === undefined ? A0.y : kin.axleY), 4);
+
+    // Better: compute rotated points precisely and draw triangle (main pivot, rotated axle, rotated shock lower)
+    const Arot = rotatePoint(A0.x, A0.y, mainP.x, mainP.y, kin.theta);
+    const Srot = rotatePoint(A0.x + SOff.x, A0.y + SOff.y, mainP.x, mainP.y, kin.theta);
+    // chainstay line
+    ctx.strokeStyle = '#7ee787'; ctx.lineWidth = 8; ctx.beginPath(); ctx.moveTo(sx(mainP.x), sy(mainP.y)); ctx.lineTo(sx(Arot.x), sy(Arot.y)); ctx.lineTo(sx(A0.x + SOff.x), sy(A0.y + SOff.y)); ctx.stroke();
+    // seatstay
+    ctx.beginPath(); ctx.moveTo(sx(A0.x + SOff.x), sy(A0.y + SOff.y)); ctx.lineTo(sx(mainP.x), sy(mainP.y)); ctx.stroke();
+
+    // draw rotated axle marker
+    ctx.fillStyle = '#cfeeff'; drawCircle(sx(Arot.x), sy(Arot.y), 8);
+
+    // draw shock
+    ctx.strokeStyle = '#fde68a'; ctx.lineWidth = 6; ctx.beginPath(); ctx.moveTo(sx(STop.x), sy(STop.y)); ctx.lineTo(sx(Srot.x), sy(Srot.y)); ctx.stroke();
+    ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.ellipse(sx((STop.x+Srot.x)/2), sy((STop.y+Srot.y)/2), 10, 18, 0, 0, Math.PI*2); ctx.fill();
+
+    // draw original axle reference faded
+    ctx.strokeStyle = 'rgba(255,255,255,0.06)'; ctx.lineWidth=2; ctx.beginPath(); ctx.moveTo(sx(A0.x), sy(A0.y)); ctx.lineTo(sx(Arot.x), sy(Arot.y)); ctx.stroke();
+
+    // update outputs
+    axleOut.textContent = kin.axleTravel.toFixed(2) + ' mm';
+    shockOut.textContent = kin.shockLen.toFixed(2) + ' mm';
+    const leverage = kin.shockLen>0 ? (kin.axleTravel / kin.shockLen) : Infinity;
+    leverOut.textContent = (leverage===Infinity? '—' : leverage.toFixed(3));
+
+  } else {
+    // analytic fallback
+    const a = kinematics_analytic(mode, bump);
+    // draw simple schematic
+    const rearY = A0.y - a.axle;
+    drawWheelShape(sx(A0.x), sy(rearY));
+    axial = a.axle;
+    axleOut.textContent = Math.round(a.axle) + ' mm';
+    shockOut.textContent = Math.round(a.shock) + ' mm';
+    leverOut.textContent = (a.leverage===Infinity? '—' : a.leverage.toFixed(2));
+  }
+}
+
+function drawWheelShape(cx, cy){
+  // small wheel representation used in analytic mode
+  ctx.lineWidth = 16; ctx.strokeStyle = '#0b0b0e'; ctx.beginPath(); ctx.arc(cx, cy, 30, 0, Math.PI*2); ctx.stroke();
+  ctx.lineWidth = 4; ctx.strokeStyle = '#c9d2e0'; ctx.beginPath(); ctx.arc(cx, cy, 20, 0, Math.PI*2); ctx.stroke();
+}
+
+// -------------------------
+// UI and animation
+// -------------------------
+function step(){
+  sim.time += 0.016;
+  drawScene();
+  requestAnimationFrame(step);
+}
+requestAnimationFrame(step);
+
+// wire up inputs
+bumpSlider.addEventListener('input', ()=>{ bumpVal.textContent = bumpSlider.value; });
+[mainPivotX, mainPivotY, axleX, axleY, shockTopX, shockTopY, shockOffX, shockOffY, modeEl].forEach(el=> el.addEventListener('change', ()=>{}));
+
+presetTrail.addEventListener('click', ()=>{
+  // example reasonable coordinates (mm)
+  mainPivotX.value = 460; mainPivotY.value = 250;
+  axleX.value = 300; axleY.value = 360;
+  shockTopX.value = 370; shockTopY.value = 210;
+  shockOffX.value = -40; shockOffY.value = -35;
+});
+presetEnduro.addEventListener('click', ()=>{
+  mainPivotX.value = 480; mainPivotY.value = 280;
+  axleX.value = 310; axleY.value = 380;
+  shockTopX.value = 390; shockTopY.value = 220;
+  shockOffX.value = -48; shockOffY.value = -42;
+});
+
+</script>
+</body>
+</html>
