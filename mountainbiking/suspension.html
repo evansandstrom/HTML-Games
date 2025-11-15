@@ -1,0 +1,448 @@
+<!doctype html>
+<!--
+MTB Suspension Simulator
+Single-file HTML + CSS + JS
+
+Features:
+- Choose suspension type: Rigid, Hardtail, Single-pivot, Horst-link, VPP (virtual pivot), DW-link (simplified)
+- Interactive slider to apply bump (wheel displacement) and rider load
+- Sliders for spring rate, damping, travel, sag
+- Animated schematic showing wheel, frame, rear triangle, shock
+- Live readout of axle movement, shock stroke, leverage ratio, and estimated spring force
+- Presets for realistic linkage curves (simplified analytic approximations)
+
+This is a simplified, educational simulator — it intentionally simplifies kinematics and dynamics for clarity.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>MTB Suspension Simulator</title>
+<style>
+  :root{--bg:#0f1724;--card:#0b1220;--muted:#98a6b3;--accent:#7dd3fc;--accent2:#60a5fa}
+  html,body{height:100%;margin:0;font-family:Inter,ui-sans-serif,system-ui,-apple-system,Segoe UI,Roboto,'Helvetica Neue',Arial}
+  body{background:linear-gradient(180deg,#081026 0%, #071123 100%);color:#e6eef8;padding:20px}
+  .container{max-width:1100px;margin:0 auto;display:grid;grid-template-columns:420px 1fr;gap:20px}
+  .card{background:linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));border-radius:12px;padding:16px;box-shadow:0 6px 18px rgba(2,6,23,0.6);}
+  h1{margin:0 0 8px;font-size:20px}
+  label{display:block;font-size:13px;color:var(--muted);margin-bottom:6px}
+  select,input[type=range]{width:100%}
+  .controls{display:flex;flex-direction:column;gap:12px}
+  .row{display:flex;gap:8px}
+  .col{flex:1}
+  .small{font-size:12px;color:var(--muted)}
+  .canvas-wrap{display:flex;flex-direction:column;height:640px}
+  canvas{background:linear-gradient(180deg, rgba(255,255,255,0.01), transparent);border-radius:8px}
+  .status{display:flex;gap:12px;flex-wrap:wrap;margin-top:10px}
+  .stat{background:rgba(255,255,255,0.02);padding:8px;border-radius:8px;min-width:120px}
+  .btn{background:var(--accent2);border:none;padding:8px 12px;border-radius:8px;color:#07203a;cursor:pointer}
+  .footer{margin-top:12px;font-size:13px;color:var(--muted)}
+  .legend{display:flex;gap:8px;align-items:center}
+  .dot{width:12px;height:8px;border-radius:3px}
+</style>
+</head>
+<body>
+<div class="container">
+  <div class="card">
+    <h1>MTB Suspension Simulator</h1>
+    <div class="small">Select a suspension type and experiment with travel, spring, damping and bumps. This is simplified but explains kinematics & leverage ratio behavior.</div>
+
+    <div style="height:12px"></div>
+
+    <div class="controls">
+      <div>
+        <label>Suspension type</label>
+        <select id="typeSelect">
+          <option value="rigid">Rigid (no rear suspension)</option>
+          <option value="hardtail">Hardtail (front only)</option>
+          <option value="single_pivot">Full-suspension: Single-pivot</option>
+          <option value="horst">Full-suspension: Horst-link (4-bar)</option>
+          <option value="vpp">Full-suspension: VPP (short for Virtual Pivot)</option>
+          <option value="dw">Full-suspension: DW-link (simplified)</option>
+        </select>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label>Travel (mm)</label>
+          <input id="travel" type="range" min="50" max="200" value="140" />
+          <div class="small"><span id="travelVal">140</span> mm</div>
+        </div>
+        <div class="col">
+          <label>Shock stroke (mm)</label>
+          <input id="shockStroke" type="range" min="20" max="80" value="52" />
+          <div class="small"><span id="shockVal">52</span> mm</div>
+        </div>
+      </div>
+
+      <div class="row">
+        <div class="col">
+          <label>Spring rate (N/mm)</label>
+          <input id="springRate" type="range" min="1" max="12" step="0.1" value="5.5" />
+          <div class="small"><span id="springVal">5.5</span> N/mm</div>
+        </div>
+        <div class="col">
+          <label>Damping (arbitrary)</label>
+          <input id="damping" type="range" min="0" max="3" step="0.01" value="0.6" />
+          <div class="small"><span id="dampingVal">0.60</span></div>
+        </div>
+      </div>
+
+      <div>
+        <label>Sag (%)</label>
+        <input id="sag" type="range" min="0" max="40" value="25" />
+        <div class="small"><span id="sagVal">25</span>%</div>
+      </div>
+
+      <div>
+        <label>Wheel bump (mm) — drag or use the slider to compress the wheel</label>
+        <input id="bump" type="range" min="0" max="120" value="0" />
+        <div class="small">Wheel displacement: <span id="bumpVal">0</span> mm</div>
+      </div>
+
+      <div class="row">
+        <button id="pulseBtn" class="btn">Apply single bump</button>
+        <button id="resetBtn" class="btn" style="background:#8b5cf6;color:white">Reset</button>
+      </div>
+
+      <div class="footer">Tip: Try different types and notice how leverage ratio (axle displacement / shock stroke) changes with travel.</div>
+    </div>
+
+  </div>
+
+  <div class="card canvas-wrap">
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+      <div style="display:flex;flex-direction:column">
+        <strong>Visualization</strong>
+        <div class="small">Top-down simplified side-view schematic</div>
+      </div>
+      <div class="legend">
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="dot" style="background:#93c5fd"></div><div class="small">Frame</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="dot" style="background:#7ee787"></div><div class="small">Rear triangle</div>
+        </div>
+        <div style="display:flex;gap:8px;align-items:center">
+          <div class="dot" style="background:#fde68a"></div><div class="small">Shock</div>
+        </div>
+      </div>
+    </div>
+
+    <canvas id="simCanvas" width="820" height="560"></canvas>
+
+    <div class="status">
+      <div class="stat">
+        <div class="small">Axle travel</div>
+        <strong id="axleTravel">0 mm</strong>
+      </div>
+      <div class="stat">
+        <div class="small">Shock stroke</div>
+        <strong id="shockStrokeOut">0 mm</strong>
+      </div>
+      <div class="stat">
+        <div class="small">Leverage ratio</div>
+        <strong id="lever">0.00</strong>
+      </div>
+      <div class="stat">
+        <div class="small">Estimated spring force</div>
+        <strong id="forceOut">0 N</strong>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+// ---------------------------
+// Utility & UI wiring
+// ---------------------------
+const $ = id => document.getElementById(id);
+const typeSelect = $('typeSelect');
+const travelEl = $('travel'); const travelVal = $('travelVal');
+const shockEl = $('shockStroke'); const shockVal = $('shockVal');
+const springEl = $('springRate'); const springVal = $('springVal');
+const dampingEl = $('damping'); const dampingVal = $('dampingVal');
+const sagEl = $('sag'); const sagVal = $('sagVal');
+const bumpEl = $('bump'); const bumpVal = $('bumpVal');
+const pulseBtn = $('pulseBtn'); const resetBtn = $('resetBtn');
+const axleTravelOut = $('axleTravel'); const shockStrokeOut = $('shockStrokeOut');
+const leverOut = $('lever'); const forceOut = $('forceOut');
+
+const canvas = $('simCanvas'); const ctx = canvas.getContext('2d');
+let state = {
+  type: typeSelect.value,
+  travel: +travelEl.value,
+  shockStroke: +shockEl.value,
+  springRate: +springEl.value,
+  damping: +dampingEl.value,
+  sagPercent: +sagEl.value,
+  wheelDisp: +bumpEl.value,
+  animTarget: 0,
+  animVel: 0
+};
+
+// update UI labels
+function updateLabels(){
+  travelVal.textContent = state.travel;
+  shockVal.textContent = state.shockStroke;
+  springVal.textContent = state.springRate.toFixed(2);
+  dampingVal.textContent = state.damping.toFixed(2);
+  sagVal.textContent = state.sagPercent;
+  bumpVal.textContent = Math.round(state.wheelDisp);
+}
+updateLabels();
+
+// attach events
+[typeSelect, travelEl, shockEl, springEl, dampingEl, sagEl, bumpEl].forEach(el=>{
+  el.addEventListener('input', ()=>{
+    state.type = typeSelect.value;
+    state.travel = +travelEl.value;
+    state.shockStroke = +shockEl.value;
+    state.springRate = +springEl.value;
+    state.damping = +dampingEl.value;
+    state.sagPercent = +sagEl.value;
+    state.wheelDisp = +bumpEl.value;
+    updateLabels();
+  });
+});
+
+pulseBtn.addEventListener('click', ()=>{ state.animTarget = Math.min(120, state.wheelDisp + 60); state.animVel = -40; });
+resetBtn.addEventListener('click', ()=>{ state.wheelDisp = 0; bumpEl.value = 0; state.animTarget = 0; state.animVel = 0; updateLabels(); });
+
+// ---------------------------
+// Kinematic models (simplified)
+// Each returns {shockStroke(mm), leverage (axle/shock), axle(mm)} for a given wheel displacement
+// We'll model wheel displacement as vertical axle travel at rear wheel.
+// For realistic linkages you would compute transformations of pivot points; here we approximate with analytic leverage curves which capture qualitative differences.
+// ---------------------------
+
+function kinematics(type, wheelDisp, travel, shockStroke){
+  // normalize wheelDisp to 0..travel
+  const w = Math.max(0, Math.min(travel, wheelDisp));
+  let shock = 0; let lever = 1.0;
+
+  // baseline: rigid/hardtail -> no shock movement
+  if(type==='rigid' || type==='hardtail'){
+    shock = 0; lever = Infinity; // no rear suspension
+  }
+
+  // single pivot: typically progressive-ish or fairly linear depending on pivot location
+  else if(type==='single_pivot'){
+    // use a mild progressive function: shock = a*w + b*w^2
+    const a = 0.35; const b = 0.0009*(travel/140); // mild quadratic
+    shock = a*w + b*w*w;
+    lever = (w>0? (w / shock) : 999);
+  }
+
+  // Horst-link: more linear mid-stroke then slightly progressive
+  else if(type==='horst'){
+    // linear + small negative cubic to flatten mid-stroke
+    const a = 0.4; const b = -0.000006*(travel/140);
+    shock = a*w + b*w*w*w;
+    lever = (w>0? (w / shock) : 999);
+  }
+
+  // VPP: more falling leverage (antiprogressive -> becomes more progressive) - we'll model curve that starts lower then increases leverage ratio
+  else if(type==='vpp'){
+    // vpp often has decreasing leverage early then rising -> shock stroke smaller early, larger later
+    const p = w/travel;
+    // shock roughly: a1*w*(1 - 0.6*p) + a2*w*p
+    const a1 = 0.28; const a2 = 0.55;
+    shock = (a1*(1 - 0.6*p) + a2*p)*w;
+    lever = (w>0? (w / shock) : 999);
+  }
+
+  // DW-link (simplified): anti-squat-focused, tends to be relatively linear but can be slightly rising
+  else if(type==='dw'){
+    const a = 0.38; const b = 0.0005*(travel/140);
+    shock = a*w + b*w*w;
+    lever = (w>0? (w / shock) : 999);
+  }
+
+  // clamp by shockStroke
+  if(shock > shockStroke) shock = shockStroke;
+
+  return {axle: w, shockStrokeOut: shock, leverage: (shock>0? (w/shock) : Infinity)};
+}
+
+// ---------------------------
+// Simulation / drawing
+// ---------------------------
+
+const dims = {w: canvas.width, h: canvas.height};
+const origin = {x:80, y:450}; // approximate ground baseline
+
+function draw(){
+  ctx.clearRect(0,0,dims.w,dims.h);
+
+  // read state
+  const t = state;
+  const kin = kinematics(t.type, t.wheelDisp, t.travel, t.shockStroke);
+
+  // compute points for frame and rear triangle (schematic)
+  // Frame: fixed pivot near head tube and main pivot
+  const frame = {
+    head: {x:origin.x+120, y:origin.y-180},
+    mainPivot: {x:origin.x+250, y:origin.y-120}
+  };
+
+  // Rear axle base position when uncompressed
+  const axleBase = {x:origin.x+500, y:origin.y};
+  const axle = {x: axleBase.x, y: axleBase.y - kin.axle}; // axle moves up by axle travel
+
+  // Rear triangle pivot points (simplified)
+  const chainstayPivot = {x:frame.mainPivot.x+80, y:frame.mainPivot.y+40};
+  const seatstayPivot = {x:frame.mainPivot.x+20, y:frame.mainPivot.y-10};
+
+  // Shock positions (simplified): attach between frame.mainPivot and rear triangle near seatstayPivot
+  const shockTop = {x: frame.mainPivot.x+10, y: frame.mainPivot.y-10};
+  // shock bottom anchored near a point that moves with axle. approximate bottom position
+  const shockBottom = {x: axle.x - 60, y: axle.y - 30};
+
+  // draw ground
+  ctx.fillStyle = '#071428'; ctx.fillRect(0, origin.y+12, dims.w, dims.h - origin.y - 12);
+
+  // draw wheel
+  drawWheel(axle.x, axle.y);
+
+  // draw frame
+  ctx.lineWidth = 8; ctx.lineCap='round';
+  ctx.strokeStyle = '#93c5fd';
+  ctx.beginPath(); ctx.moveTo(frame.head.x, frame.head.y); ctx.lineTo(frame.mainPivot.x, frame.mainPivot.y); ctx.lineTo(shockTop.x, shockTop.y); ctx.stroke();
+
+  // draw rear triangle
+  ctx.strokeStyle = '#7ee787'; ctx.lineWidth = 8;
+  ctx.beginPath(); ctx.moveTo(frame.mainPivot.x, frame.mainPivot.y); ctx.lineTo(chainstayPivot.x, chainstayPivot.y); ctx.lineTo(axle.x, axle.y); ctx.lineTo(seatstayPivot.x, seatstayPivot.y); ctx.lineTo(frame.mainPivot.x, frame.mainPivot.y); ctx.stroke();
+
+  // draw shock
+  ctx.lineWidth = 6; ctx.strokeStyle = '#fde68a';
+  ctx.beginPath(); ctx.moveTo(shockTop.x, shockTop.y); ctx.lineTo(shockBottom.x, shockBottom.y); ctx.stroke();
+  // shock capsule
+  const midx = (shockTop.x+shockBottom.x)/2; const midy = (shockTop.y+shockBottom.y)/2;
+  ctx.fillStyle = '#fef3c7'; ctx.beginPath(); ctx.ellipse(midx, midy, 10, 18, 0, 0, Math.PI*2); ctx.fill();
+
+  // draw pivot markers
+  ctx.fillStyle='rgba(255,255,255,0.7)';
+  drawCircle(frame.mainPivot.x, frame.mainPivot.y,4); drawCircle(chainstayPivot.x, chainstayPivot.y,4);
+
+  // labels & lines
+  ctx.font = '12px Inter, Arial'; ctx.fillStyle = '#cfeeff';
+  ctx.fillText('Frame', frame.head.x-10, frame.head.y-10);
+  ctx.fillText('Rear axle', axle.x-30, axle.y-12);
+  ctx.fillText('Shock top', shockTop.x+6, shockTop.y);
+
+  // readouts
+  axleTravelOut.textContent = Math.round(kin.axle) + ' mm';
+  shockStrokeOut.textContent = Math.round(kin.shockStrokeOut) + ' mm';
+  leverOut.textContent = (kin.leverage===Infinity? '—' : kin.leverage.toFixed(2));
+
+  // estimated spring force: F = k * (shock stroke from sag position)
+  const sagStroke = (t.sagPercent/100) * t.shockStroke;
+  const currentStroke = kin.shockStrokeOut;
+  let displacementFromSag = currentStroke - sagStroke; // mm
+  // clamp negative (if shock shorter than sag stroke)
+  if(displacementFromSag < 0) displacementFromSag = 0;
+  const force = Math.round(t.springRate * displacementFromSag);
+  forceOut.textContent = force + ' N';
+
+  // draw graph of leverage vs travel (mini)
+  drawLeveragePlot(t);
+}
+
+function drawCircle(x,y,r){ ctx.beginPath(); ctx.arc(x,y,r,0,Math.PI*2); ctx.fill(); }
+
+function drawWheel(x,y){
+  // rim
+  ctx.lineWidth = 6; ctx.strokeStyle = '#94a3b8'; ctx.beginPath(); ctx.arc(x,y,36,0,Math.PI*2); ctx.stroke();
+  // tire
+  ctx.lineWidth = 10; ctx.strokeStyle = '#0b1320'; ctx.beginPath(); ctx.arc(x,y,44,0,Math.PI*2); ctx.stroke();
+  // axle
+  ctx.fillStyle='rgba(255,255,255,0.8)'; drawCircle(x,y,4);
+}
+
+function drawLeveragePlot(t){
+  // small plot in top-right
+  const w=240,h=120,x0=dims.w-260,y0=20;
+  ctx.save(); ctx.translate(x0,y0);
+  // background
+  ctx.fillStyle='rgba(255,255,255,0.02)'; ctx.fillRect(0,0,w,h);
+  // axes
+  ctx.strokeStyle='rgba(255,255,255,0.06)'; ctx.lineWidth=1; ctx.strokeRect(36,12,w-44,h-28);
+  // compute leverage curve points
+  ctx.beginPath();
+  const steps = 30; let maxL=0;
+  for(let i=0;i<=steps;i++){
+    const dis = (i/steps)*t.travel;
+    const k = kinematics(t.type, dis, t.travel, t.shockStroke);
+    const lever = (k.shockStrokeOut>0? (k.axle / k.shockStrokeOut) : 0);
+    if(lever>maxL) maxL=lever;
+  }
+  if(maxL<1) maxL=1;
+
+  for(let i=0;i<=steps;i++){
+    const dis = (i/steps)*t.travel;
+    const k = kinematics(t.type, dis, t.travel, t.shockStroke);
+    const lever = (k.shockStrokeOut>0? (k.axle / k.shockStrokeOut) : 0);
+    const px = 36 + (i/steps)*(w-60);
+    const py = 12 + (1 - Math.min(1, lever/maxL))*(h-40);
+    if(i===0) ctx.moveTo(px,py); else ctx.lineTo(px,py);
+  }
+  ctx.strokeStyle='#7ee787'; ctx.lineWidth=2; ctx.stroke();
+  ctx.fillStyle='#cfeeff'; ctx.font='10px Inter'; ctx.fillText('Leverage vs Axle travel',6,10);
+  ctx.fillText('0',34+h*0.95, h+4);
+  ctx.restore();
+}
+
+// ---------------------------
+// Simple animation & damping
+// ---------------------------
+let lastTime = null;
+function step(ts){
+  if(!lastTime) lastTime = ts; const dt = Math.min(50, ts-lastTime)/1000; lastTime = ts;
+
+  // simple spring-damper to animate wheel towards target
+  const target = state.animTarget; // target wheel displacement (mm)
+  // velocity and position are in state.animVel & state.wheelDisp
+  // a = -k(x - target) - c*v
+  const k = 40; // stiffness of animation spring
+  const c = 6 + state.damping*8;
+  const x = state.wheelDisp; const v = state.animVel;
+  const a = -k*(x - target) - c*v;
+  state.animVel += a*dt; state.wheelDisp += state.animVel*dt*100; // scaled so dt seconds -> mm
+
+  // small clamp & friction
+  if(state.wheelDisp < 0){ state.wheelDisp = 0; state.animVel *= -0.2; }
+  if(state.wheelDisp > state.travel){ state.wheelDisp = state.travel; state.animVel *= -0.2; }
+
+  // if user is manually dragging bump slider, follow it
+  if(document.activeElement === bumpEl){ state.wheelDisp = +bumpEl.value; }
+  // else push slider value to UI
+  bumpEl.value = Math.round(state.wheelDisp);
+
+  updateLabels();
+  draw();
+  requestAnimationFrame(step);
+}
+requestAnimationFrame(step);
+
+// initialize small demo preset per type
+function applyPreset(type){
+  if(type==='rigid'){ travelEl.value=50; shockEl.value=20; springEl.value=0; dampingEl.value=0; }
+  else if(type==='hardtail'){ travelEl.value=100; shockEl.value=40; springEl.value=3.5; dampingEl.value=0.3; }
+  else if(type==='single_pivot'){ travelEl.value=140; shockEl.value=52; springEl.value=5.5; dampingEl.value=0.6; }
+  else if(type==='horst'){ travelEl.value=150; shockEl.value=55; springEl.value=6.0; dampingEl.value=0.7; }
+  else if(type==='vpp'){ travelEl.value=165; shockEl.value=60; springEl.value=7.0; dampingEl.value=0.8; }
+  else if(type==='dw'){ travelEl.value=160; shockEl.value=58; springEl.value=6.5; dampingEl.value=0.7; }
+  // push into state & UI
+  state.travel = +travelEl.value; state.shockStroke = +shockEl.value; state.springRate = +springEl.value; state.damping = +dampingEl.value;
+  updateLabels();
+}
+
+// when changing type, apply presets
+typeSelect.addEventListener('change', ()=>{ applyPreset(typeSelect.value); state.type = typeSelect.value; });
+applyPreset(typeSelect.value);
+
+</script>
+</body>
+</html>
