@@ -1,0 +1,293 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Snowman Jump ❄️ Power-Ups</title>
+
+<style>
+  body {
+    margin: 0;
+    background: linear-gradient(#6ec6ff, #ffffff);
+    font-family: Arial, sans-serif;
+    overflow: hidden;
+  }
+
+  #score, #power {
+    text-align: center;
+    font-size: 18px;
+    font-weight: bold;
+  }
+
+  #game {
+    position: relative;
+    width: 400px;
+    height: 600px;
+    margin: 10px auto;
+    background: #eaf9ff;
+    border: 4px solid #333;
+    overflow: hidden;
+  }
+
+  .snowman {
+    position: absolute;
+    width: 40px;
+    height: 50px;
+    background: white;
+    border-radius: 50%;
+    border: 2px solid #333;
+  }
+
+  .snowman::before {
+    content: "";
+    position: absolute;
+    width: 30px;
+    height: 30px;
+    background: white;
+    border-radius: 50%;
+    top: -20px;
+    left: 3px;
+    border: 2px solid #333;
+  }
+
+  .platform {
+    position: absolute;
+    width: 70px;
+    height: 10px;
+    background: #4da6ff;
+    border-radius: 5px;
+  }
+
+  .powerup {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: white;
+    border-radius: 50%;
+    box-shadow: 0 0 10px cyan;
+  }
+
+  .snowflake {
+    position: absolute;
+    width: 6px;
+    height: 6px;
+    background: white;
+    border-radius: 50%;
+    opacity: 0.8;
+  }
+
+  #gameOver {
+    position: absolute;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    display: none;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    font-size: 24px;
+  }
+
+  button {
+    padding: 10px 20px;
+    font-size: 16px;
+    margin-top: 10px;
+    cursor: pointer;
+  }
+</style>
+</head>
+<body>
+
+<div id="score">Score: 0</div>
+<div id="power">Power-Up: OFF</div>
+
+<div id="game">
+  <div id="snowman" class="snowman"></div>
+  <div id="gameOver">
+    <div>Game Over</div>
+    <button onclick="restart()">Restart</button>
+  </div>
+</div>
+
+<script>
+const game = document.getElementById("game");
+const snowman = document.getElementById("snowman");
+const scoreDisplay = document.getElementById("score");
+const powerDisplay = document.getElementById("power");
+const gameOverScreen = document.getElementById("gameOver");
+
+let snowmanX = 180;
+let snowmanY = 450;
+let velocityY = 0;
+let gravity = 0.5;
+let normalJump = -10;
+let bigJump = -16;
+let jumpPower = normalJump;
+
+let platforms = [];
+let powerups = [];
+let snowflakes = [];
+let score = 0;
+let keys = {};
+let isGameOver = false;
+
+let powerActive = false;
+let powerTimer = 0;
+
+function createPlatform(y) {
+  const p = document.createElement("div");
+  p.className = "platform";
+  p.style.left = Math.random() * 330 + "px";
+  p.style.top = y + "px";
+  game.appendChild(p);
+  platforms.push(p);
+
+  if (Math.random() < 0.2) {
+    const pu = document.createElement("div");
+    pu.className = "powerup";
+    pu.style.left = p.offsetLeft + 25 + "px";
+    pu.style.top = y - 25 + "px";
+    game.appendChild(pu);
+    powerups.push(pu);
+  }
+}
+
+function createSnowflake() {
+  const s = document.createElement("div");
+  s.className = "snowflake";
+  s.style.left = Math.random() * 400 + "px";
+  s.style.top = "-10px";
+  s.speed = Math.random() * 2 + 1;
+  game.appendChild(s);
+  snowflakes.push(s);
+}
+
+function setupPlatforms() {
+  platforms.forEach(p => p.remove());
+  powerups.forEach(p => p.remove());
+  platforms = [];
+  powerups = [];
+
+  for (let i = 0; i < 8; i++) {
+    createPlatform(600 - i * 80);
+  }
+}
+
+function activatePower() {
+  powerActive = true;
+  powerTimer = 600; // ~10 seconds
+  jumpPower = bigJump;
+  powerDisplay.textContent = "Power-Up: ON ⚡";
+}
+
+function update() {
+  if (isGameOver) return;
+
+  velocityY += gravity;
+  snowmanY += velocityY;
+
+  if (keys["ArrowLeft"] || keys["a"]) snowmanX -= 5;
+  if (keys["ArrowRight"] || keys["d"]) snowmanX += 5;
+
+  if (snowmanX < -40) snowmanX = 400;
+  if (snowmanX > 400) snowmanX = -40;
+
+  platforms.forEach(p => {
+    if (
+      snowmanX + 40 > p.offsetLeft &&
+      snowmanX < p.offsetLeft + 70 &&
+      snowmanY + 50 > p.offsetTop &&
+      snowmanY + 50 < p.offsetTop + 10 &&
+      velocityY > 0
+    ) {
+      velocityY = jumpPower;
+    }
+  });
+
+  powerups.forEach((pu, i) => {
+    if (
+      snowmanX + 40 > pu.offsetLeft &&
+      snowmanX < pu.offsetLeft + 20 &&
+      snowmanY + 50 > pu.offsetTop &&
+      snowmanY < pu.offsetTop + 20
+    ) {
+      activatePower();
+      pu.remove();
+      powerups.splice(i, 1);
+    }
+  });
+
+  if (snowmanY < 250) {
+    const diff = 250 - snowmanY;
+    snowmanY = 250;
+
+    platforms.forEach(p => {
+      p.style.top = p.offsetTop + diff + "px";
+      if (p.offsetTop > 600) {
+        p.remove();
+        platforms.shift();
+        createPlatform(-10);
+        score++;
+        scoreDisplay.textContent = "Score: " + score;
+      }
+    });
+
+    powerups.forEach(pu => {
+      pu.style.top = pu.offsetTop + diff + "px";
+    });
+  }
+
+  if (snowmanY > 600) {
+    isGameOver = true;
+    gameOverScreen.style.display = "flex";
+  }
+
+  if (powerActive) {
+    powerTimer--;
+    if (powerTimer <= 0) {
+      powerActive = false;
+      jumpPower = normalJump;
+      powerDisplay.textContent = "Power-Up: OFF";
+    }
+  }
+
+  if (Math.random() < 0.2) createSnowflake();
+  snowflakes.forEach((s, i) => {
+    s.style.top = s.offsetTop + s.speed + "px";
+    if (s.offsetTop > 600) {
+      s.remove();
+      snowflakes.splice(i, 1);
+    }
+  });
+
+  snowman.style.left = snowmanX + "px";
+  snowman.style.top = snowmanY + "px";
+
+  requestAnimationFrame(update);
+}
+
+function restart() {
+  score = 0;
+  snowmanX = 180;
+  snowmanY = 450;
+  velocityY = 0;
+  powerActive = false;
+  jumpPower = normalJump;
+  isGameOver = false;
+
+  scoreDisplay.textContent = "Score: 0";
+  powerDisplay.textContent = "Power-Up: OFF";
+  gameOverScreen.style.display = "none";
+
+  setupPlatforms();
+  update();
+}
+
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+setupPlatforms();
+update();
+</script>
+
+</body>
+</html>
