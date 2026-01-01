@@ -1,0 +1,206 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fireworks Over Cities</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    font-family: Arial, sans-serif;
+    background: black;
+  }
+
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .background {
+    position: fixed;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    z-index: -1;
+  }
+
+  .controls {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    width: 260px;
+    font-size: 13px;
+  }
+
+  label {
+    display: block;
+    margin-top: 8px;
+  }
+
+  input, select {
+    width: 100%;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="background" id="bg"></div>
+<canvas id="canvas"></canvas>
+
+<div class="controls">
+  <label>City
+    <select id="city">
+      <option value="nyc">New York</option>
+      <option value="paris">Paris</option>
+      <option value="tokyo">Tokyo</option>
+      <option value="london">London</option>
+      <option value="sydney">Sydney</option>
+    </select>
+  </label>
+
+  <label>Color Preset
+    <select id="colors">
+      <option value="classic">Classic</option>
+      <option value="usa">USA</option>
+      <option value="neon">Neon</option>
+      <option value="pastel">Pastel</option>
+      <option value="random">Random</option>
+    </select>
+  </label>
+
+  <label>Particles
+    <input type="range" id="particles" min="20" max="300" value="120">
+  </label>
+
+  <label>Explosion Size
+    <input type="range" id="size" min="1" max="6" step="0.5" value="3">
+  </label>
+
+  <label>Speed
+    <input type="range" id="speed" min="2" max="10" step="0.5" value="5">
+  </label>
+
+  <label>Gravity
+    <input type="range" id="gravity" min="0.02" max="0.2" step="0.01" value="0.05">
+  </label>
+</div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+window.onresize = () => {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+};
+
+// Backgrounds (free Unsplash images)
+const cityBackgrounds = {
+  nyc: "https://images.unsplash.com/photo-1549640376-91e2c47a2c2f",
+  paris: "https://images.unsplash.com/photo-1502602898657-3e91760cbb34",
+  tokyo: "https://images.unsplash.com/photo-1549692520-acc6669e2f0c",
+  london: "https://images.unsplash.com/photo-1488747279002-c8523379faaa",
+  sydney: "https://images.unsplash.com/photo-1506973035872-a4ec16b8e8d9"
+};
+
+const colorSets = {
+  classic: ["#ffcc00", "#ff6600", "#ffffff"],
+  usa: ["#ff0000", "#ffffff", "#0000ff"],
+  neon: ["#00ffff", "#ff00ff", "#00ff00"],
+  pastel: ["#ffd1dc", "#c1f0f6", "#f6eac2"],
+  random: null
+};
+
+const bg = document.getElementById("bg");
+const citySelect = document.getElementById("city");
+const colorSelect = document.getElementById("colors");
+
+function updateCity() {
+  bg.style.backgroundImage = `url(${cityBackgrounds[citySelect.value]})`;
+}
+updateCity();
+citySelect.onchange = updateCity;
+
+function random(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+let particles = [];
+
+class Particle {
+  constructor(x, y) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Number(speedInput.value);
+
+    this.x = x;
+    this.y = y;
+    this.vx = Math.cos(angle) * random(1, speed);
+    this.vy = Math.sin(angle) * random(1, speed);
+    this.alpha = 1;
+    this.size = Number(sizeInput.value);
+
+    const set = colorSets[colorSelect.value];
+    this.color = set
+      ? set[Math.floor(Math.random() * set.length)]
+      : `hsl(${Math.random() * 360}, 100%, 60%)`;
+  }
+
+  update() {
+    this.vy += Number(gravityInput.value);
+    this.x += this.vx;
+    this.y += this.vy;
+    this.alpha -= 0.01;
+  }
+
+  draw() {
+    ctx.globalAlpha = this.alpha;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function createFirework(x, y) {
+  for (let i = 0; i < particlesInput.value; i++) {
+    particles.push(new Particle(x, y));
+  }
+}
+
+canvas.onclick = e => {
+  createFirework(e.clientX, e.clientY);
+};
+
+const particlesInput = document.getElementById("particles");
+const sizeInput = document.getElementById("size");
+const speedInput = document.getElementById("speed");
+const gravityInput = document.getElementById("gravity");
+
+function animate() {
+  requestAnimationFrame(animate);
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  particles = particles.filter(p => p.alpha > 0);
+  particles.forEach(p => {
+    p.update();
+    p.draw();
+  });
+}
+
+animate();
+</script>
+
+</body>
+</html>
