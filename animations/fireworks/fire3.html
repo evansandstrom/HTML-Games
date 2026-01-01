@@ -1,0 +1,217 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Fireworks Over Cities</title>
+
+<style>
+  body {
+    margin: 0;
+    overflow: hidden;
+    background: radial-gradient(circle at bottom, #020024, #000);
+    font-family: Arial, sans-serif;
+  }
+
+  canvas {
+    position: absolute;
+    top: 0;
+    left: 0;
+  }
+
+  .controls {
+    position: fixed;
+    top: 10px;
+    left: 10px;
+    background: rgba(0,0,0,0.7);
+    color: white;
+    padding: 12px;
+    border-radius: 8px;
+    width: 260px;
+    font-size: 13px;
+    z-index: 10;
+  }
+
+  label {
+    display: block;
+    margin-top: 8px;
+  }
+
+  select, input {
+    width: 100%;
+  }
+
+  .city {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    height: 180px;
+    fill: #000;
+    z-index: 1;
+  }
+</style>
+</head>
+
+<body>
+
+<canvas id="canvas"></canvas>
+
+<div class="controls">
+  <label>City
+    <select id="city">
+      <option value="nyc">New York</option>
+      <option value="paris">Paris</option>
+      <option value="tokyo">Tokyo</option>
+      <option value="london">London</option>
+      <option value="sydney">Sydney</option>
+    </select>
+  </label>
+
+  <label>Color Set
+    <select id="colors">
+      <option value="classic">Classic</option>
+      <option value="usa">USA</option>
+      <option value="neon">Neon</option>
+      <option value="pastel">Pastel</option>
+      <option value="random">Random</option>
+    </select>
+  </label>
+
+  <label>Particles
+    <input type="range" id="particles" min="20" max="300" value="120">
+  </label>
+
+  <label>Explosion Size
+    <input type="range" id="size" min="1" max="6" step="0.5" value="3">
+  </label>
+
+  <label>Speed
+    <input type="range" id="speed" min="2" max="10" step="0.5" value="5">
+  </label>
+
+  <label>Gravity
+    <input type="range" id="gravity" min="0.02" max="0.2" step="0.01" value="0.05">
+  </label>
+</div>
+
+<div id="cityContainer"></div>
+
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+canvas.width = innerWidth;
+canvas.height = innerHeight;
+
+window.onresize = () => {
+  canvas.width = innerWidth;
+  canvas.height = innerHeight;
+};
+
+// ---------- CITY SKYLINES (SVG silhouettes) ----------
+const cities = {
+  nyc: `<svg class="city" viewBox="0 0 1200 200"><rect y="120" width="1200" height="80"/><rect x="100" y="60" width="80" height="140"/><rect x="220" y="30" width="90" height="170"/><rect x="360" y="80" width="110" height="120"/><rect x="520" y="40" width="70" height="160"/><rect x="640" y="70" width="100" height="130"/><rect x="800" y="50" width="80" height="150"/><rect x="930" y="90" width="120" height="110"/></svg>`,
+
+  paris: `<svg class="city" viewBox="0 0 1200 200"><rect y="130" width="1200" height="70"/><polygon points="600,20 620,130 580,130"/><rect x="300" y="80" width="120" height="120"/><rect x="780" y="90" width="140" height="110"/></svg>`,
+
+  tokyo: `<svg class="city" viewBox="0 0 1200 200"><rect y="120" width="1200" height="80"/><rect x="200" y="60" width="100" height="140"/><rect x="360" y="40" width="60" height="160"/><rect x="520" y="70" width="90" height="130"/><rect x="680" y="30" width="50" height="170"/><rect x="820" y="60" width="120" height="140"/></svg>`,
+
+  london: `<svg class="city" viewBox="0 0 1200 200"><rect y="120" width="1200" height="80"/><rect x="200" y="50" width="120" height="150"/><rect x="400" y="70" width="100" height="130"/><polygon points="600,40 630,120 570,120"/><rect x="760" y="60" width="140" height="140"/></svg>`,
+
+  sydney: `<svg class="city" viewBox="0 0 1200 200"><rect y="130" width="1200" height="70"/><path d="M300 130 Q400 40 500 130"/><path d="M520 130 Q600 50 680 130"/><rect x="780" y="70" width="120" height="130"/></svg>`
+};
+
+const cityContainer = document.getElementById("cityContainer");
+const citySelect = document.getElementById("city");
+
+function updateCity() {
+  cityContainer.innerHTML = cities[citySelect.value];
+}
+updateCity();
+citySelect.onchange = updateCity;
+
+// ---------- COLORS ----------
+const colorSets = {
+  classic: ["#ffcc00", "#ff6600", "#ffffff"],
+  usa: ["#ff0000", "#ffffff", "#0000ff"],
+  neon: ["#00ffff", "#ff00ff", "#00ff00"],
+  pastel: ["#ffd1dc", "#c1f0f6", "#f6eac2"],
+  random: null
+};
+
+const colorSelect = document.getElementById("colors");
+
+// ---------- FIREWORK LOGIC ----------
+let particles = [];
+
+function rand(min, max) {
+  return Math.random() * (max - min) + min;
+}
+
+class Particle {
+  constructor(x, y, color) {
+    const angle = Math.random() * Math.PI * 2;
+    const speed = Number(speedInput.value);
+    this.x = x;
+    this.y = y;
+    this.vx = Math.cos(angle) * rand(1, speed);
+    this.vy = Math.sin(angle) * rand(1, speed);
+    this.alpha = 1;
+    this.size = Number(sizeInput.value);
+    this.color = color;
+  }
+  update() {
+    this.vy += Number(gravityInput.value);
+    this.x += this.vx;
+    this.y += this.vy;
+    this.alpha -= 0.01;
+  }
+  draw() {
+    ctx.globalAlpha = this.alpha;
+    ctx.beginPath();
+    ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
+    ctx.fillStyle = this.color;
+    ctx.fill();
+    ctx.globalAlpha = 1;
+  }
+}
+
+function launchFirework() {
+  const x = rand(100, canvas.width - 100);
+  const y = rand(100, canvas.height * 0.5);
+
+  const set = colorSets[colorSelect.value];
+  const color = set
+    ? set[Math.floor(Math.random() * set.length)]
+    : `hsl(${Math.random() * 360}, 100%, 60%)`;
+
+  for (let i = 0; i < particlesInput.value; i++) {
+    particles.push(new Particle(x, y, color));
+  }
+}
+
+// ---------- AUTO FIREWORKS ----------
+setInterval(launchFirework, 700);
+
+// ---------- CONTROLS ----------
+const particlesInput = document.getElementById("particles");
+const sizeInput = document.getElementById("size");
+const speedInput = document.getElementById("speed");
+const gravityInput = document.getElementById("gravity");
+
+// ---------- ANIMATION ----------
+function animate() {
+  requestAnimationFrame(animate);
+  ctx.fillStyle = "rgba(0,0,0,0.25)";
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  particles = particles.filter(p => p.alpha > 0);
+  particles.forEach(p => {
+    p.update();
+    p.draw();
+  });
+}
+
+animate();
+</script>
+
+</body>
+</html>
