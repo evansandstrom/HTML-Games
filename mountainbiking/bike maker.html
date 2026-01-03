@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Mountain Bike Designer</title>
+
+<style>
+  body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+    display: flex;
+    height: 100vh;
+  }
+
+  .controls {
+    width: 300px;
+    background: #1c1c1c;
+    color: white;
+    padding: 15px;
+    overflow-y: auto;
+  }
+
+  .controls h2 {
+    margin-top: 0;
+  }
+
+  label {
+    display: block;
+    margin-top: 12px;
+    font-size: 14px;
+  }
+
+  input, select {
+    width: 100%;
+    margin-top: 4px;
+  }
+
+  .viewer {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #ddd;
+  }
+
+  svg {
+    width: 90%;
+    max-width: 800px;
+  }
+</style>
+</head>
+
+<body>
+
+<div class="controls">
+  <h2>Bike Designer</h2>
+
+  <label>Frame Size
+    <select id="frameSize">
+      <option value="0.9">Small</option>
+      <option value="1">Medium</option>
+      <option value="1.1">Large</option>
+      <option value="1.2">XL</option>
+    </select>
+  </label>
+
+  <label>Frame Color
+    <input type="color" id="frameColor" value="#ff0000">
+  </label>
+
+  <label>Wheel Size
+    <select id="wheelSize">
+      <option value="26">26"</option>
+      <option value="27.5">27.5"</option>
+      <option value="29" selected>29"</option>
+    </select>
+  </label>
+
+  <label>Front Travel (mm)
+    <input type="range" id="frontTravel" min="120" max="180" value="150">
+  </label>
+
+  <label>Rear Travel (mm)
+    <input type="range" id="rearTravel" min="110" max="170" value="140">
+  </label>
+
+  <label>Handlebar Width (mm)
+    <input type="range" id="barWidth" min="720" max="820" value="780">
+  </label>
+
+  <label>Seat Height
+    <input type="range" id="seatHeight" min="40" max="80" value="60">
+  </label>
+
+  <label>Fork Type
+    <select id="forkType">
+      <option>Trail</option>
+      <option>Enduro</option>
+      <option>Downhill</option>
+    </select>
+  </label>
+
+  <label>Shock Type
+    <select id="shockType">
+      <option>Air</option>
+      <option>Coil</option>
+    </select>
+  </label>
+</div>
+
+<div class="viewer">
+<svg viewBox="0 0 800 400">
+  <!-- Wheels -->
+  <circle id="rearWheel" cx="200" cy="300" r="80" fill="none" stroke="#000" stroke-width="6"/>
+  <circle id="frontWheel" cx="600" cy="300" r="80" fill="none" stroke="#000" stroke-width="6"/>
+
+  <!-- Frame -->
+  <line id="topTube" x1="200" y1="200" x2="450" y2="180" stroke-width="8" stroke-linecap="round"/>
+  <line id="downTube" x1="200" y1="200" x2="420" y2="280" stroke-width="8" stroke-linecap="round"/>
+  <line id="seatTube" x1="280" y1="150" x2="200" y2="200" stroke-width="8" stroke-linecap="round"/>
+  <line id="chainStay" x1="200" y1="300" x2="420" y2="280" stroke-width="8" stroke-linecap="round"/>
+  <line id="seatStay" x1="200" y1="200" x2="450" y2="280" stroke-width="8" stroke-linecap="round"/>
+
+  <!-- Fork -->
+  <line id="fork" x1="600" y1="220" x2="600" y2="300" stroke="#555" stroke-width="10"/>
+
+  <!-- Handlebar -->
+  <line id="bar" x1="550" y1="180" x2="650" y2="180" stroke="#000" stroke-width="6"/>
+
+  <!-- Seat -->
+  <line id="seatPost" x1="260" y1="120" x2="280" y2="150" stroke="#333" stroke-width="6"/>
+  <rect id="seat" x="240" y="100" width="60" height="12" rx="4"/>
+
+  <!-- Rear Shock -->
+  <line id="shock" x1="350" y1="240" x2="400" y2="210" stroke="#888" stroke-width="6"/>
+</svg>
+</div>
+
+<script>
+const frameParts = ["topTube","downTube","seatTube","chainStay","seatStay"];
+const frameColor = document.getElementById("frameColor");
+const frameSize = document.getElementById("frameSize");
+const wheelSize = document.getElementById("wheelSize");
+const frontTravel = document.getElementById("frontTravel");
+const rearTravel = document.getElementById("rearTravel");
+const barWidth = document.getElementById("barWidth");
+const seatHeight = document.getElementById("seatHeight");
+
+function updateFrameColor() {
+  frameParts.forEach(id => {
+    document.getElementById(id).setAttribute("stroke", frameColor.value);
+  });
+}
+
+function updateFrameSize() {
+  const scale = frameSize.value;
+  frameParts.forEach(id => {
+    document.getElementById(id).setAttribute("transform", `scale(${scale})`);
+  });
+}
+
+function updateWheels() {
+  const r = wheelSize.value * 2.7;
+  rearWheel.setAttribute("r", r);
+  frontWheel.setAttribute("r", r);
+}
+
+function updateFork() {
+  fork.setAttribute("stroke-width", frontTravel.value / 15);
+}
+
+function updateShock() {
+  shock.setAttribute("stroke-width", rearTravel.value / 20);
+}
+
+function updateBar() {
+  bar.setAttribute("x1", 600 - barWidth.value / 20);
+  bar.setAttribute("x2", 600 + barWidth.value / 20);
+}
+
+function updateSeat() {
+  seat.setAttribute("y", 150 - seatHeight.value);
+}
+
+[
+  frameColor, frameSize, wheelSize,
+  frontTravel, rearTravel, barWidth, seatHeight
+].forEach(input => input.addEventListener("input", () => {
+  updateFrameColor();
+  updateFrameSize();
+  updateWheels();
+  updateFork();
+  updateShock();
+  updateBar();
+  updateSeat();
+}));
+
+updateFrameColor();
+updateWheels();
+</script>
+
+</body>
+</html>
