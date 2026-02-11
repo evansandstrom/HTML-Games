@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Custom Bike Builder</title>
+<style>
+    body {
+        margin: 0;
+        font-family: Arial, Helvetica, sans-serif;
+        background: linear-gradient(135deg, #1f1f1f, #2c3e50);
+        color: white;
+    }
+
+    header {
+        text-align: center;
+        padding: 20px;
+        font-size: 28px;
+        font-weight: bold;
+        background: #111;
+        letter-spacing: 2px;
+    }
+
+    .container {
+        display: flex;
+        flex-wrap: wrap;
+        padding: 20px;
+        gap: 30px;
+        justify-content: center;
+    }
+
+    .builder {
+        background: #222;
+        padding: 20px;
+        border-radius: 12px;
+        width: 350px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.6);
+    }
+
+    .builder h2 {
+        text-align: center;
+        margin-bottom: 15px;
+    }
+
+    label {
+        display: block;
+        margin-top: 15px;
+        font-size: 14px;
+    }
+
+    select, input[type="color"] {
+        width: 100%;
+        padding: 8px;
+        margin-top: 5px;
+        border-radius: 6px;
+        border: none;
+        font-size: 14px;
+    }
+
+    .price {
+        margin-top: 20px;
+        font-size: 20px;
+        text-align: center;
+        font-weight: bold;
+        color: #00ffcc;
+    }
+
+    .preview {
+        background: #111;
+        padding: 20px;
+        border-radius: 12px;
+        width: 450px;
+        box-shadow: 0 0 20px rgba(0,0,0,0.6);
+        text-align: center;
+    }
+
+    svg {
+        width: 100%;
+        height: 300px;
+    }
+
+    footer {
+        text-align: center;
+        padding: 15px;
+        font-size: 12px;
+        opacity: 0.6;
+    }
+</style>
+</head>
+<body>
+
+<header>🚲 Custom Bike Builder</header>
+
+<div class="container">
+    <div class="builder">
+        <h2>Configure Your Bike</h2>
+
+        <label>Frame Type</label>
+        <select id="frame">
+            <option value="500">Road ($500)</option>
+            <option value="700">Mountain ($700)</option>
+            <option value="650">Gravel ($650)</option>
+            <option value="400">BMX ($400)</option>
+        </select>
+
+        <label>Frame Size</label>
+        <select id="size">
+            <option value="0">Small</option>
+            <option value="0">Medium</option>
+            <option value="0">Large</option>
+        </select>
+
+        <label>Wheel Size</label>
+        <select id="wheels">
+            <option value="200">26" ($200)</option>
+            <option value="250">27.5" ($250)</option>
+            <option value="300">29" ($300)</option>
+        </select>
+
+        <label>Suspension</label>
+        <select id="suspension">
+            <option value="0">None ($0)</option>
+            <option value="150">Front Suspension ($150)</option>
+            <option value="300">Full Suspension ($300)</option>
+        </select>
+
+        <label>Drivetrain</label>
+        <select id="drivetrain">
+            <option value="100">1x10 ($100)</option>
+            <option value="200">1x12 ($200)</option>
+            <option value="300">Electronic ($300)</option>
+        </select>
+
+        <label>Brakes</label>
+        <select id="brakes">
+            <option value="100">Mechanical Disc ($100)</option>
+            <option value="200">Hydraulic Disc ($200)</option>
+        </select>
+
+        <label>Frame Color</label>
+        <input type="color" id="color" value="#ff0000">
+
+        <div class="price">Total: $<span id="total">0</span></div>
+    </div>
+
+    <div class="preview">
+        <h2>Live Preview</h2>
+        <svg viewBox="0 0 500 300">
+            <!-- Wheels -->
+            <circle cx="120" cy="220" r="70" stroke="white" stroke-width="6" fill="none"/>
+            <circle cx="380" cy="220" r="70" stroke="white" stroke-width="6" fill="none"/>
+
+            <!-- Frame -->
+            <polygon id="bikeFrame"
+                points="120,220 200,150 320,150 380,220 260,220"
+                fill="#ff0000"
+                stroke="white"
+                stroke-width="4"/>
+
+            <!-- Seat -->
+            <line x1="200" y1="150" x2="200" y2="110" stroke="white" stroke-width="5"/>
+            <rect x="180" y="100" width="40" height="10" fill="white"/>
+
+            <!-- Handlebars -->
+            <line x1="320" y1="150" x2="350" y2="120" stroke="white" stroke-width="5"/>
+            <line x1="350" y1="120" x2="380" y2="130" stroke="white" stroke-width="5"/>
+        </svg>
+    </div>
+</div>
+
+<footer>Bike Builder Demo | Interactive HTML Project</footer>
+
+<script>
+    const selects = document.querySelectorAll("select");
+    const totalSpan = document.getElementById("total");
+    const colorPicker = document.getElementById("color");
+    const bikeFrame = document.getElementById("bikeFrame");
+
+    function updatePrice() {
+        let total = 0;
+        selects.forEach(select => {
+            total += parseInt(select.value);
+        });
+        totalSpan.textContent = total;
+    }
+
+    selects.forEach(select => {
+        select.addEventListener("change", updatePrice);
+    });
+
+    colorPicker.addEventListener("input", function() {
+        bikeFrame.setAttribute("fill", this.value);
+    });
+
+    updatePrice();
+</script>
+
+</body>
+</html>
