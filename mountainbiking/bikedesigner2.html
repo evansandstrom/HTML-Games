@@ -1,0 +1,248 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>Advanced Bike Builder</title>
+<style>
+body {
+    margin: 0;
+    font-family: Arial, sans-serif;
+    background: linear-gradient(135deg,#0f2027,#203a43,#2c5364);
+    color: white;
+}
+
+header {
+    text-align: center;
+    padding: 20px;
+    font-size: 28px;
+    font-weight: bold;
+}
+
+.container {
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: center;
+    gap: 40px;
+    padding: 20px;
+}
+
+.controls {
+    background: rgba(0,0,0,0.5);
+    padding: 20px;
+    border-radius: 12px;
+    width: 300px;
+}
+
+.controls label {
+    display: block;
+    margin-top: 15px;
+}
+
+select, input[type=color] {
+    width: 100%;
+    padding: 6px;
+    margin-top: 5px;
+    border-radius: 6px;
+    border: none;
+}
+
+.price {
+    margin-top: 20px;
+    font-size: 20px;
+    color: #00ffcc;
+    text-align: center;
+}
+
+.preview {
+    background: rgba(0,0,0,0.6);
+    padding: 20px;
+    border-radius: 12px;
+}
+
+svg {
+    width: 600px;
+    height: 350px;
+}
+</style>
+</head>
+<body>
+
+<header>🚲 Interactive Bike Builder</header>
+
+<div class="container">
+
+<div class="controls">
+    <label>Bike Type</label>
+    <select id="type">
+        <option value="road" data-price="800">Road ($800)</option>
+        <option value="mountain" data-price="1200">Mountain ($1200)</option>
+        <option value="bmx" data-price="600">BMX ($600)</option>
+    </select>
+
+    <label>Wheel Size</label>
+    <select id="wheels">
+        <option value="60" data-price="200">26" ($200)</option>
+        <option value="70" data-price="300">27.5" ($300)</option>
+        <option value="80" data-price="400">29" ($400)</option>
+    </select>
+
+    <label>Suspension</label>
+    <select id="suspension">
+        <option value="none" data-price="0">None ($0)</option>
+        <option value="front" data-price="200">Front ($200)</option>
+        <option value="full" data-price="500">Full ($500)</option>
+    </select>
+
+    <label>Frame Color</label>
+    <input type="color" id="color" value="#ff0000">
+
+    <div class="price">Total: $<span id="total"></span></div>
+</div>
+
+<div class="preview">
+<svg viewBox="0 0 600 350">
+
+<!-- Wheels -->
+<circle id="rearWheel" cx="180" cy="250" r="70" stroke="white" stroke-width="6" fill="none"/>
+<circle id="frontWheel" cx="420" cy="250" r="70" stroke="white" stroke-width="6" fill="none"/>
+
+<!-- Frame -->
+<g id="frameGroup" stroke="white" stroke-width="6" fill="none">
+    <line id="topTube"/>
+    <line id="downTube"/>
+    <line id="seatTube"/>
+    <line id="chainStay"/>
+    <line id="seatStay"/>
+</g>
+
+<!-- Fork -->
+<line id="fork" stroke="white" stroke-width="6"/>
+
+<!-- Shock -->
+<line id="shock" stroke="yellow" stroke-width="5" visibility="hidden"/>
+
+</svg>
+</div>
+
+</div>
+
+<script>
+const typeSelect = document.getElementById("type");
+const wheelSelect = document.getElementById("wheels");
+const suspensionSelect = document.getElementById("suspension");
+const colorPicker = document.getElementById("color");
+
+const rearWheel = document.getElementById("rearWheel");
+const frontWheel = document.getElementById("frontWheel");
+
+const topTube = document.getElementById("topTube");
+const downTube = document.getElementById("downTube");
+const seatTube = document.getElementById("seatTube");
+const chainStay = document.getElementById("chainStay");
+const seatStay = document.getElementById("seatStay");
+const fork = document.getElementById("fork");
+const shock = document.getElementById("shock");
+
+const totalSpan = document.getElementById("total");
+
+function updateBike() {
+
+    // Wheel Size
+    const wheelSize = parseInt(wheelSelect.value);
+    rearWheel.setAttribute("r", wheelSize);
+    frontWheel.setAttribute("r", wheelSize);
+
+    const wheelY = 250;
+
+    rearWheel.setAttribute("cy", wheelY);
+    frontWheel.setAttribute("cy", wheelY);
+
+    // Frame geometry by type
+    const type = typeSelect.value;
+
+    let seatX = 260;
+    let seatY = 150;
+    let headX = 380;
+    let headY = 170;
+
+    if(type === "road") {
+        seatY = 150;
+        headY = 170;
+    }
+    if(type === "mountain") {
+        seatY = 170;
+        headY = 190;
+    }
+    if(type === "bmx") {
+        seatY = 190;
+        headY = 200;
+    }
+
+    topTube.setAttribute("x1", seatX);
+    topTube.setAttribute("y1", seatY);
+    topTube.setAttribute("x2", headX);
+    topTube.setAttribute("y2", headY);
+
+    downTube.setAttribute("x1", headX);
+    downTube.setAttribute("y1", headY);
+    downTube.setAttribute("x2", 180);
+    downTube.setAttribute("y2", wheelY);
+
+    seatTube.setAttribute("x1", seatX);
+    seatTube.setAttribute("y1", seatY);
+    seatTube.setAttribute("x2", 180);
+    seatTube.setAttribute("y2", wheelY);
+
+    chainStay.setAttribute("x1", 180);
+    chainStay.setAttribute("y1", wheelY);
+    chainStay.setAttribute("x2", seatX);
+    chainStay.setAttribute("y2", seatY);
+
+    seatStay.setAttribute("x1", seatX);
+    seatStay.setAttribute("y1", seatY);
+    seatStay.setAttribute("x2", 180);
+    seatStay.setAttribute("y2", wheelY);
+
+    // Fork
+    fork.setAttribute("x1", headX);
+    fork.setAttribute("y1", headY);
+    fork.setAttribute("x2", 420);
+    fork.setAttribute("y2", wheelY);
+
+    // Suspension
+    if(suspensionSelect.value === "full") {
+        shock.setAttribute("visibility","visible");
+        shock.setAttribute("x1", 250);
+        shock.setAttribute("y1", 200);
+        shock.setAttribute("x2", 310);
+        shock.setAttribute("y2", 170);
+    } else {
+        shock.setAttribute("visibility","hidden");
+    }
+
+    // Color
+    document.getElementById("frameGroup")
+        .setAttribute("stroke", colorPicker.value);
+    fork.setAttribute("stroke", colorPicker.value);
+
+    updatePrice();
+}
+
+function updatePrice() {
+    let total = 0;
+    total += parseInt(typeSelect.selectedOptions[0].dataset.price);
+    total += parseInt(wheelSelect.selectedOptions[0].dataset.price);
+    total += parseInt(suspensionSelect.selectedOptions[0].dataset.price);
+    totalSpan.textContent = total;
+}
+
+typeSelect.onchange = updateBike;
+wheelSelect.onchange = updateBike;
+suspensionSelect.onchange = updateBike;
+colorPicker.oninput = updateBike;
+
+updateBike();
+</script>
+
+</body>
+</html>
