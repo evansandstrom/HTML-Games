@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Snowboard Side Scroller</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: linear-gradient(#6ec6ff, #e0f7ff);
+  font-family: Arial, sans-serif;
+}
+#ui {
+  position: absolute;
+  top: 15px;
+  left: 15px;
+  color: white;
+  font-size: 22px;
+  text-shadow: 2px 2px 5px black;
+}
+canvas { display: block; }
+</style>
+</head>
+<body>
+
+<div id="ui">
+Score: <span id="score">0</span>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let groundY = canvas.height - 120;
+
+let player = {
+  x: 200,
+  y: groundY,
+  width: 60,
+  height: 60,
+  velY: 0,
+  jumping: false,
+  spinning: false,
+  rotation: 0
+};
+
+let gravity = 0.6;
+let speed = 8;
+let score = 0;
+let obstacles = [];
+let jumps = [];
+let snow = [];
+let worldX = 0;
+
+function spawnObstacle() {
+  obstacles.push({
+    x: canvas.width + 100,
+    y: groundY,
+    width: 50,
+    height: 80
+  });
+}
+
+function spawnJump() {
+  jumps.push({
+    x: canvas.width + 100,
+    y: groundY + 10,
+    width: 80,
+    height: 30
+  });
+}
+
+function spawnSnow() {
+  snow.push({
+    x: Math.random() * canvas.width,
+    y: -10,
+    size: Math.random() * 3 + 1,
+    speed: Math.random() * 2 + 1
+  });
+}
+
+function drawMountains() {
+  ctx.fillStyle = "#b0d6f5";
+  ctx.beginPath();
+  ctx.moveTo(0, groundY);
+  for(let i=0;i<canvas.width;i+=300){
+    ctx.lineTo(i - (worldX*0.2)%300, groundY - 200 - Math.random()*100);
+    ctx.lineTo(i+150 - (worldX*0.2)%300, groundY);
+  }
+  ctx.lineTo(canvas.width, groundY);
+  ctx.fill();
+}
+
+function drawGround() {
+  ctx.fillStyle = "#ffffff";
+  ctx.fillRect(0, groundY, canvas.width, canvas.height-groundY);
+}
+
+function drawPlayer() {
+  ctx.save();
+  ctx.translate(player.x, player.y);
+  ctx.rotate(player.rotation);
+
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,0.2)";
+  ctx.ellipse(0, 40, 50, 10, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // board
+  ctx.fillStyle = "#222";
+  ctx.fillRect(-40, 20, 80, 10);
+
+  // body
+  ctx.fillStyle = "#ff4c4c";
+  ctx.fillRect(-15, -40, 30, 50)
