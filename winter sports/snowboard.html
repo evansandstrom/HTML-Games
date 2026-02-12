@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Snowboard Rush</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: linear-gradient(#87CEEB, #ffffff);
+  font-family: Arial, sans-serif;
+}
+
+#ui {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  color: white;
+  font-size: 20px;
+  text-shadow: 2px 2px 4px black;
+}
+
+canvas {
+  display: block;
+}
+</style>
+</head>
+<body>
+
+<div id="ui">
+Score: <span id="score">0</span><br>
+Speed: <span id="speed">0</span>
+</div>
+
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+let score = 0;
+let speed = 8;
+let playerX = canvas.width / 2;
+let playerY = canvas.height - 150;
+let velocityX = 0;
+let spinning = false;
+let spinAmount = 0;
+let crashed = false;
+
+const trees = [];
+const jumps = [];
+
+function spawnTree() {
+  trees.push({
+    x: Math.random() * canvas.width,
+    y: -50,
+    size: 40 + Math.random() * 30
+  });
+}
+
+function spawnJump() {
+  jumps.push({
+    x: Math.random() * canvas.width,
+    y: -50,
+    size: 60
+  });
+}
+
+function drawMountain() {
+  const gradient = ctx.createLinearGradient(0,0,0,canvas.height);
+  gradient.addColorStop(0,"#ffffff");
+  gradient.addColorStop(1,"#dcdcdc");
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function drawPlayer() {
+  ctx.save();
+  ctx.translate(playerX, playerY);
+
+  if(spinning) {
+    ctx.rotate(spinAmount);
+  }
+
+  // shadow
+  ctx.fillStyle = "rgba(0,0,0,0.3)";
+  ctx.ellipse(0, 25, 40, 10, 0, 0, Math.PI*2);
+  ctx.fill();
+
+  // board
+  ctx.fillStyle = "#222";
+  ctx.fillRect(-40, -5, 80, 10);
+
+  // body
+  ctx.fillStyle = "#ff4444";
+  ctx.fillRect(-10, -40, 20, 35);
+
+  ctx.restore();
+}
+
+function drawTree(tree) {
+  ctx.fillStyle = "#3b7a3b";
+  ctx.beginPath();
+  ctx.moveTo(tree.x, tree.y);
+  ctx.lineTo(tree.x - tree.size/2, tree.y + tree.size);
+  ctx.lineTo(tree.x + tree.size/2, tree.y + tree.size);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function drawJump(jump) {
+  ctx.fillStyle = "#aaa";
+  ctx.beginPath();
+  ctx.moveTo(jump.x - jump.size/2, jump.y + jump.size/2);
+  ctx.lineTo(jump.x + jump.size/2, jump.y + jump.size/2);
+  ctx.lineTo(jump.x, jump.y - jump.size/2);
+  ctx.closePath();
+  ctx.fill();
+}
+
+function update() {
+  if(crashed) return;
+
+  score += 1;
+  document.getElementById("score").innerText = score;
+  document.getElementById("speed").innerText = speed;
+
+  playerX += velocityX;
+
+  velocityX *= 0.9;
+
+  trees.forEach(tree => {
+    tree.y += speed;
+
+    if(Math.abs(tree.x - playerX) < tree.size/2 && 
+       Math.abs(tree.y - playerY) < tree.size/2) {
+      crashed = true;
+      alert("You crashed! Final Score: " + score);
+      location.reload();
+    }
+  });
+
+  jumps.forEach(jump => {
+    jump.y += speed;
+
+    if(Math.abs(jump.x - playerX) < jump.size/2 && 
+       Math.abs(jump.y - playerY) < jump.size/2) {
+      spinning = true;
+      spinAmount = 0;
+    }
+  });
+
+  if(spinning) {
+    spinAmount += 0.3;
+    if(spinAmount >= Math.PI * 2) {
+      spinning = false;
+      score += 200;
+    }
+  }
+
+  trees.filter(tree => tree.y < canvas.height + 50);
+  jumps.filter(jump => jump.y < canvas.height + 50);
+}
+
+function draw() {
+  drawMountain();
+
+  trees.forEach(drawTree);
+  jumps.forEach(drawJump);
+  drawPlayer();
+}
+
+function gameLoop() {
+  update();
+  draw();
+  requestAnimationFrame(gameLoop);
+}
+
+setInterval(spawnTree, 800);
+setInterval(spawnJump, 2000);
+
+document.addEventListener("keydown", e => {
+  if(e.key === "ArrowLeft") velocityX = -10;
+  if(e.key === "ArrowRight") velocityX = 10;
+  if(e.key === "ArrowUp") speed += 1;
+});
+
+gameLoop();
+</script>
+
+</body>
+</html>
