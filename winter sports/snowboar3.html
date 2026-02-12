@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html>
+<head>
+<title>Snowboard Run</title>
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  background: linear-gradient(#6ec6ff, #e6f7ff);
+  font-family: Arial, sans-serif;
+}
+#ui {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  color: white;
+  font-size: 22px;
+  text-shadow: 2px 2px 6px black;
+}
+canvas { display: block; }
+</style>
+</head>
+<body>
+
+<div id="ui">Score: <span id="score">0</span></div>
+<canvas id="game"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const groundY = canvas.height - 120;
+
+let score = 0;
+let speed = 7;
+let gravity = 0.7;
+
+let player = {
+  x: 200,
+  y: groundY,
+  width: 60,
+  height: 60,
+  velY: 0,
+  jumping: false,
+  spinning: false,
+  rotation: 0
+};
+
+let trees = [];
+let ramps = [];
+let snowflakes = [];
+
+function spawnTree() {
+  trees.push({
+    x: canvas.width + 100,
+    width: 50,
+    height: 80
+  });
+}
+
+function spawnRamp() {
+  ramps.push({
+    x: canvas.width + 100,
+    width: 100,
+    height: 40
+  });
+}
+
+function spawnSnow() {
+  snowflakes.push({
+    x: Math.random() * canvas.width,
+    y: -10,
+    size: Math.random() * 3 + 1,
+    speed: Math.random() * 2 + 1
+  });
+}
+
+function update() {
+  score++;
+  document.getElementById("score").innerText = score;
+
+  // Gravity
+  player.velY += gravity;
+  player.y += player.velY;
+
+  if(player.y >= groundY) {
+    player.y = groundY;
+    player.velY = 0;
+    player.jumping = false;
+
+    if(player.spinning) {
+      score += 500;
+      player.spinning = false;
+      player.rotation = 0;
+    }
+  }
+
+  if(player.spinning) {
+    player.rotation += 0.25;
+  }
+
+  // Move objects
+  trees.forEach(t => t.x -= speed);
+  ramps.forEach(r => r.x -= speed);
+  snowflakes.forEach(s => s.y += s.speed);
+
+  // Tree collision
+  trees.forEach(t => {
+    if(player.x + 30 > t.x - 25 &&
+       player.x - 30 < t.x + 25 &&
+       player.y >= groundY - 10) {
+      alert("You crashed! Score: " + score);
